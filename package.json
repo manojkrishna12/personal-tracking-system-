@@ -1,0 +1,22 @@
+{
+  "name": "manoj-tracking-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal self-tracking dashboard — calendar + analytics for daily habits, daily score and weight.",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "seed:demo": "npm run seed:demo --workspace server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
+  }
+}

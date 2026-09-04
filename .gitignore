@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment / secrets — never commit real credentials
+.env
+.env.local
+.env.*.local
+
+# Local MongoDB data (dev)
+.mongo-data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database backups (personal data — never commit)
+backups/
+
+# Agent tooling / session files
+.freebuff/
+
+# Test / coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db

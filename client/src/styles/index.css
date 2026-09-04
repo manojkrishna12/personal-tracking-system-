@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+}
+
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #efeeea;
+  --ink: #1d1d1a;
+  --muted: #6f6e67;
+  --line: #e3e1da;
+  --good: #4a7d5c;
+  --warn: #a97c33;
+  --bad: #a94d40;
+  --good-soft: rgba(74, 125, 92, 0.12);
+  --warn-soft: rgba(169, 124, 51, 0.12);
+  --bad-soft: rgba(169, 77, 64, 0.12);
+}
+
+.dark {
+  --bg: #111214;
+  --surface: #181a1e;
+  --surface-2: #202228;
+  --ink: #e9e8e4;
+  --muted: #9b9a92;
+  --line: #2b2d33;
+  --good: #7caf8e;
+  --warn: #c49a5f;
+  --bad: #cf7d70;
+  --good-soft: rgba(124, 175, 142, 0.14);
+  --warn-soft: rgba(196, 154, 95, 0.14);
+  --bad-soft: rgba(207, 125, 112, 0.14);
+}
+
+html {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Minimal focus style */
+:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--good-soft);
+}
