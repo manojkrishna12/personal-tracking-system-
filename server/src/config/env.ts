@@ -25,6 +25,9 @@ export const env = {
   port,
   mongoUri: get('MONGODB_URI', 'mongodb://127.0.0.1:27017/manoj_tracking'),
   jwtSecret: jwtSecret || 'dev-only-insecure-secret',
+  // Frontend origin allowed to call this API with credentials (CORS).
+  // Unset in local dev (the Vite proxy needs no CORS).
+  clientOrigin: get('CLIENT_ORIGIN', ''),
   nodeEnv,
   isProd,
 }

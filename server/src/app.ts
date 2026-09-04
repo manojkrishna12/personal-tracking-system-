@@ -1,6 +1,7 @@
 import express from 'express'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { env } from './config/env'
 import { authRequired } from './middleware/auth'
@@ -18,8 +19,18 @@ export function createApp() {
 
   // Helmet's strict CSP is fine for the built app but blocks Vite dev/HMR.
   app.use(helmet({ contentSecurityPolicy: env.isProd ? undefined : false }))
+  // Allow the deployed frontend (a different origin) to call this API with cookies.
+  // Unset locally — the Vite dev proxy is same-origin, so no CORS headers are added.
+  if (env.clientOrigin) {
+    app.use(cors({ origin: env.clientOrigin, credentials: true }))
+  }
   app.use(express.json({ limit: '100kb' }))
   app.use(cookieParser())
+
+  // Liveness probe for the host (Render health check).
+  app.get('/health', (_req, res) => {
+    res.json({ ok: true })
+  })
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

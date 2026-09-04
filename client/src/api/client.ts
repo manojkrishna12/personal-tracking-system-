@@ -12,9 +12,13 @@ export class ApiError extends Error {
   }
 }
 
+// Absolute API origin for production (Render static site).
+// Empty in dev, where the Vite proxy forwards /api to the Express server.
+const apiBase = (import.meta.env.VITE_API_URL as string | undefined ?? '').replace(/\/+$/, '')
+
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   const { method = 'GET', body } = options
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${apiBase}/api${path}`, {
     method,
     credentials: 'include',
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
