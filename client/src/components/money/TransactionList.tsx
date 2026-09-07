@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { Badge, Button, Card, EmptyState, Input, Modal, Select, Textarea } from '../ui'
 import { CATEGORIES, NECESSITY_LABEL, categoryLabel } from './categories'
 import { formatPaise, formatSignedPaise, parseAmountInput, rupeesToPaise } from '../../lib/money'
-import { useDeleteTransaction, useEditTransaction, useFinanceTransactions, type TransactionFilters as Filters } from '../../hooks/useFinance'
+import {
+  useDeleteTransaction,
+  useEditTransaction,
+  useFinanceOverview,
+  useFinanceTransactions,
+  useOpeningBalance,
+  type TransactionFilters as Filters,
+} from '../../hooks/useFinance'
 import type { FinanceTransaction, Necessity, WalletKey } from '../../api/types'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -166,7 +173,7 @@ function EditModal({ txn, onClose, balances }: { txn: FinanceTransaction; onClos
         {projected != null && !invalid && (
           <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted">
             {walletLabel(wallet)} after this change: <span className="font-medium text-ink">{formatPaise(projected)}</span> (was{' '}
-            {formatPaise(Math.abs(txn.amountPaise))} — {currentAmount})
+            {formatPaise(Math.abs(txn.amountPaise))} — balance excluding this transaction: {formatPaise(currentAmount)})
           </div>
         )}
         {invalid && <p className="text-xs font-medium text-bad">This change would make {walletLabel(wallet)} negative — rejected by the server too.</p>}
@@ -187,6 +194,96 @@ function EditModal({ txn, onClose, balances }: { txn: FinanceTransaction; onClos
 
 function walletLabel(w: WalletKey): string {
   return w === 'cash' ? 'Cash' : 'PhonePe'
+}
+
+// ---------------------------------------------------------------------------
+// Opening-balance correction — uses the dedicated PUT /finance/opening-balance
+// contract (audit history + explicit confirmation), NOT the generic edit
+// endpoint (which rejects opening balances). Projection:
+//   new current balance = current balance + (new opening − old opening)
+// Existing adjustments/history are untouched by design.
+// ---------------------------------------------------------------------------
+
+function OpeningBalanceEditModal({ txn, onClose, balances }: { txn: FinanceTransaction; onClose: () => void; balances: Record<WalletKey, number> }) {
+  const overview = useFinanceOverview()
+  const save = useOpeningBalance()
+  const w = overview.data?.wallets.find((x) => x.key === txn.walletKey)
+  const oldOpening = w?.openingBalancePaise ?? txn.amountPaise
+
+  const [amount, setAmount] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const value = amount ?? String(oldOpening / 100)
+
+  const parsed = parseAmountInput(value)
+  const newPaise = parsed != null ? rupeesToPaise(parsed) : null
+  const delta = newPaise != null ? newPaise - oldOpening : null
+  const projected = delta != null ? (balances[txn.walletKey] ?? 0) + delta : null
+  const unchanged = newPaise != null && newPaise === oldOpening
+  const invalid = projected != null && projected < 0
+
+  async function confirm() {
+    if (newPaise == null || unchanged || invalid) return
+    setError('')
+    try {
+      await save.mutateAsync({
+        walletKey: txn.walletKey,
+        amountPaise: newPaise,
+        acknowledged: true,
+        previousAmountPaise: oldOpening,
+      })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save')
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Correct opening balance — ${walletLabel(txn.walletKey)}`} wide>
+      <div className="space-y-3 text-sm">
+        <p className="text-xs text-muted">
+          This rewrites the ledger's foundation for this wallet. The previous value is preserved in the audit history; existing adjustments
+          and transactions are untouched. For a real-world recount, prefer <strong>Reconcile</strong> instead.
+        </p>
+        <div>
+          <label className="mb-1 block text-xs text-muted">New opening balance ₹</label>
+          <Input inputMode="decimal" value={value} onChange={(e) => setAmount(e.target.value)} autoFocus />
+        </div>
+        {w && (
+          <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-muted">
+            <div>
+              Current opening balance: <span className="font-medium text-ink">{formatPaise(oldOpening)}</span>
+            </div>
+            {delta != null && (
+              <div>
+                New opening balance: <span className="font-medium text-ink">{formatPaise(newPaise!)}</span> · change:{' '}
+                <span className="font-medium text-ink">{formatSignedPaise(delta)}</span>
+              </div>
+            )}
+            <div>
+              Current {walletLabel(txn.walletKey)}: <span className="font-medium text-ink">{formatPaise(balances[txn.walletKey] ?? 0)}</span>
+            </div>
+            {projected != null && (
+              <div>
+                {walletLabel(txn.walletKey)} after correction:{' '}
+                <span className="font-medium text-ink">{formatPaise(projected)}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {unchanged && <p className="text-xs text-muted">Same as the current opening balance — nothing to change.</p>}
+        {invalid && <p className="text-xs font-medium text-bad">This correction would make {walletLabel(txn.walletKey)} negative — rejected by the server too.</p>}
+        {error && <p className="text-xs text-bad">{error}</p>}
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={confirm} disabled={save.isPending || newPaise == null || unchanged || invalid} className="flex-1">
+            {save.isPending ? 'Saving…' : 'Confirm correction'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -263,7 +360,12 @@ export function TransactionList({ filters, balances, emptyMessage }: ListProps) 
         </div>
       )}
 
-      {editing && <EditModal txn={editing} balances={balances} onClose={() => setEditing(null)} />}
+      {editing &&
+        (editing.type === 'opening_balance' ? (
+          <OpeningBalanceEditModal txn={editing} balances={balances} onClose={() => setEditing(null)} />
+        ) : (
+          <EditModal txn={editing} balances={balances} onClose={() => setEditing(null)} />
+        ))}
 
       {deleting && (
         <Modal open onClose={() => setDeleting(null)} title="Delete transaction?">

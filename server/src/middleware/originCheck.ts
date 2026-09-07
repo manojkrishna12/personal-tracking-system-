@@ -33,5 +33,18 @@ export function originCheck(req: Request, res: Response, next: NextFunction): vo
     next()
     return
   }
+  // Local development: the Vite proxy rewrites Host to the API target
+  // (changeOrigin), so "localhost:5173" !== "127.0.0.1:3001". A loopback
+  // Origin is our own dev frontend — allow it outside production. Production
+  // (same-origin Vercel rewrite) is unaffected by this branch.
+  if (!env.isProd && isLoopbackHost(originHost)) {
+    next()
+    return
+  }
   res.status(403).json({ error: { code: 'BAD_ORIGIN', message: 'Cross-origin request not allowed' } })
+}
+
+function isLoopbackHost(hostWithPort: string): boolean {
+  const hostname = hostWithPort.replace(/:\d+$/, '').replace(/^\[|\]$/g, '')
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
 }
