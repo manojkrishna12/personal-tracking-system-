@@ -4,6 +4,7 @@ import { DailyRecord } from '../models/DailyRecord'
 import { ScoringConfig } from '../models/ScoringConfig'
 import { HabitDefinition } from '../models/HabitDefinition'
 import { computeScore, type ScoreBreakdownItem, type ScoringConfigData } from '../services/scoring'
+import { ledgerExpensesForRange, mergeEmbeddedWithLedger } from '../finance/ledger'
 import { scoringConfigSchema, settingsSchema } from '../validation/schemas'
 import { validate } from '../middleware/validate'
 import type { AuthRequest } from '../middleware/auth'
@@ -53,6 +54,8 @@ router.put('/scoring', validate(scoringConfigSchema), async (req: AuthRequest, r
 })
 
 // Re-stamp every historical record with the current scoring config.
+// Scores use the merged purchase view (plan §11): unconverted embedded
+// purchases + ledger expenses per date.
 router.post('/scores/recompute', async (req: AuthRequest, res) => {
   const userId = req.user!.id
   const [defs, cfg, records] = await Promise.all([
@@ -62,6 +65,8 @@ router.post('/scores/recompute', async (req: AuthRequest, res) => {
   ])
   const labels: Record<string, string> = {}
   for (const d of defs) labels[d.key] = d.label
+  const ledgerByDate = await ledgerExpensesForRange(userId, '0000-01-01', '9999-12-31')
+  const mergedByDate = mergeEmbeddedWithLedger(records, ledgerByDate)
   const config: ScoringConfigData = {
     baseline: cfg?.baseline ?? DEFAULT_BASELINE,
     habits: (cfg?.habits ?? []).map((h) => ({
@@ -85,12 +90,12 @@ router.post('/scores/recompute', async (req: AuthRequest, res) => {
       details: h.details ?? undefined,
       reason: h.reason ?? undefined,
     }))
-    const purchases = record.purchases.map((p) => ({
+    const purchases = (mergedByDate.get(record.date) ?? []).map((p) => ({
       item: p.item,
       amount: p.amount,
       category: p.category,
       necessary: p.necessary,
-      notes: p.notes ?? undefined,
+      notes: p.notes,
     }))
     const result = computeScore(config, habits, purchases, labels)
     await DailyRecord.updateOne(

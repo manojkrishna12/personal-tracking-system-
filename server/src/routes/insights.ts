@@ -5,6 +5,7 @@ import { HabitDefinition } from '../models/HabitDefinition'
 import { ScoringConfig } from '../models/ScoringConfig'
 import { User } from '../models/User'
 import { computeStreaks } from '../services/streaks'
+import { ledgerExpensesForRange, mergeEmbeddedWithLedger } from '../finance/ledger'
 import {
   computeMonthlyInsights,
   computeWeeklyInsights,
@@ -82,7 +83,12 @@ router.get('/weekly', async (req: AuthRequest, res) => {
     DailyRecord.find({ userId, date: { $gte: prevStart, $lte: prevEnd } }).lean() as Promise<RecordLike[]>,
     loadHabitContext(userId),
   ])
-  const result = computeWeeklyInsights({ records, prevWeekRecords, habitDefs: defs, directions, weekStart: start, weekEnd: end })
+  // Merged purchase view (plan §11) — ledger expenses + unconverted embedded.
+  const merged = mergeEmbeddedWithLedger(records, await ledgerExpensesForRange(userId, start, end))
+  const recordsWithPurchases = records.map((r) => ({ ...r, purchases: merged.get(r.date) ?? [] }))
+  const prevMerged = mergeEmbeddedWithLedger(prevWeekRecords, await ledgerExpensesForRange(userId, prevStart, prevEnd))
+  const prevWeekRecordsWithPurchases = prevWeekRecords.map((r) => ({ ...r, purchases: prevMerged.get(r.date) ?? [] }))
+  const result = computeWeeklyInsights({ records: recordsWithPurchases, prevWeekRecords: prevWeekRecordsWithPurchases, habitDefs: defs, directions, weekStart: start, weekEnd: end })
   res.json({ data: result })
 })
 
@@ -98,7 +104,16 @@ router.get('/monthly', async (req: AuthRequest, res) => {
     DailyRecord.find({ userId, date: { $gte: start, $lte: end } }).lean() as Promise<RecordLike[]>,
     loadHabitContext(userId),
   ])
-  const result = computeMonthlyInsights(month, records, directions)
+  // Merged purchase view + ledger-only days synthesised as purchase-only
+  // records so monthly spending statistics never miss ledger expenses.
+  const merged = mergeEmbeddedWithLedger(records, await ledgerExpensesForRange(userId, start, end))
+  const withMerged: RecordLike[] = records.map((r) => ({ ...r, purchases: merged.get(r.date) ?? [] }))
+  for (const [date, purchases] of merged) {
+    if (!records.some((r) => r.date === date)) {
+      withMerged.push({ date, habits: [], purchases, score: null, quality: null })
+    }
+  }
+  const result = computeMonthlyInsights(month, withMerged, directions)
   res.json({ data: result })
 })
 
@@ -115,7 +130,19 @@ router.get('/year', async (req: AuthRequest, res) => {
     WeightEntry.find({ userId, date: { $gte: start, $lte: end } }).lean() as Promise<WeightLike[]>,
     loadHabitContext(userId),
   ])
-  const result = computeYearReview({ year, records, weightEntries, habitDefs: defs, directions })
+  // Merged purchase view; ledger-only days count toward purchase totals
+  // (as extraPurchases) without affecting tracking streaks.
+  const merged = mergeEmbeddedWithLedger(records, await ledgerExpensesForRange(userId, start, end))
+  const withMerged = records.map((r) => ({ ...r, purchases: merged.get(r.date) ?? [] }))
+  let extraCount = 0
+  let extraAmount = 0
+  for (const [date, purchases] of merged) {
+    if (!records.some((r) => r.date === date)) {
+      extraCount += purchases.length
+      extraAmount += purchases.reduce((s, p) => s + p.amount, 0)
+    }
+  }
+  const result = computeYearReview({ year, records: withMerged, weightEntries, habitDefs: defs, directions, extraPurchases: { count: extraCount, amount: extraAmount } })
   res.json({ data: result })
 })
 

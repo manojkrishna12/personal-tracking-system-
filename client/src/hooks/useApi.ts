@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  deleteDay,
   deleteWeight,
   getDay,
   getHabits,
@@ -69,7 +70,7 @@ export function useSaveDay(date: string) {
   const qc = useQueryClient()
   const month = date.slice(0, 7)
   return useMutation({
-    mutationFn: (body: { habits: { habitKey: string; status?: 'completed' | 'not_completed'; details?: string; reason?: string }[]; purchases: Purchase[] }) => saveDay(date, body),
+    mutationFn: (body: { habits: { habitKey: string; status?: 'completed' | 'not_completed'; details?: string; reason?: string }[]; purchases?: Purchase[] }) => saveDay(date, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['day', date] })
       qc.invalidateQueries({ queryKey: ['days', 'month', month] })
@@ -87,6 +88,21 @@ export function useSaveWeight() {
       qc.invalidateQueries({ queryKey: ['weight'] })
       qc.invalidateQueries({ queryKey: ['day'] })
       qc.invalidateQueries({ queryKey: ['insights'] })
+    },
+  })
+}
+
+export function useDeleteDay() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (date: string) => deleteDay(date),
+    onSuccess: (_data, date) => {
+      qc.invalidateQueries({ queryKey: ['day', date] })
+      qc.invalidateQueries({ queryKey: ['days'] })
+      qc.invalidateQueries({ queryKey: ['streaks'] })
+      qc.invalidateQueries({ queryKey: ['insights'] })
+      // Clearing a day also removes its ledger expenses.
+      qc.invalidateQueries({ queryKey: ['finance'] })
     },
   })
 }

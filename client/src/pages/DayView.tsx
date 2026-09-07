@@ -5,11 +5,12 @@ import HabitModal from '../components/daily/HabitModal'
 import PurchaseModal from '../components/daily/PurchaseModal'
 import ScoreSummary from '../components/daily/ScoreSummary'
 import { Button, ErrorState, Input, LoadingState } from '../components/ui'
-import { useDay, useHabits, useSaveDay, useSaveWeight, useScoringConfig, useWeight } from '../hooks/useApi'
+import { useDay, useDeleteDay, useHabits, useSaveDay, useSaveWeight, useScoringConfig, useWeight } from '../hooks/useApi'
+import { useFinanceOverview, useFinanceTransactions } from '../hooks/useFinance'
 import { addDaysStr, isValidDateString, todayInTz } from '../lib/dates'
 import { previewScore } from '../lib/scoringPreview'
 import { formatINR } from '../lib/format'
-import type { DayRecord, HabitEntry, Purchase } from '../api/types'
+import type { DayRecord, HabitEntry, Purchase, WalletKey } from '../api/types'
 
 interface Draft {
   habits: HabitEntry[]
@@ -34,6 +35,34 @@ export default function DayView() {
   const [weightValue, setWeightValue] = useState('')
   const [weightNote, setWeightNote] = useState('')
 
+  // Ledger-backed purchases (plan §0/§11): this date's finance expenses are
+  // the Things Bought list; embedded purchases are legacy untracked rows.
+  const dayExpenses = useFinanceTransactions({ date, type: 'expense', limit: 100 })
+  const financeOverview = useFinanceOverview()
+  const deleteDay = useDeleteDay()
+  const balances: Record<WalletKey, number> = { cash: 0, phonepe: 0 }
+  const thresholds: Record<WalletKey, number> = { cash: 0, phonepe: 0 }
+  if (financeOverview.data) {
+    for (const w of financeOverview.data.wallets) {
+      balances[w.key] = w.balancePaise
+      thresholds[w.key] = w.alertThresholdPaise
+    }
+  }
+
+  // Merged purchase view (mirror of the server's rule, preview only):
+  // untracked embedded purchases + ledger expenses dated today.
+  const mergedPurchases: { item: string; amount: number; necessary: boolean }[] = useMemo(() => {
+    const embedded = (draft?.purchases ?? dayQuery.data?.purchases ?? [])
+      .filter((p) => !p.transactionId)
+      .map((p) => ({ item: p.item, amount: p.amount, necessary: p.necessary !== false }))
+    const ledger = (dayExpenses.data?.transactions ?? []).map((t) => ({
+      item: t.item ?? 'Expense',
+      amount: Math.abs(t.amountPaise) / 100,
+      necessary: t.necessity === 'necessary',
+    }))
+    return [...embedded, ...ledger]
+  }, [draft, dayQuery.data, dayExpenses.data])
+
   // Reset local draft when navigating to another date.
   useEffect(() => {
     setDraft(null)
@@ -56,13 +85,14 @@ export default function DayView() {
   const habitDefs = [...habits].sort((a, b) => a.order - b.order)
   const labels = Object.fromEntries(habits.map((h) => [h.key, h.label]))
   const saved = dayQuery.data!
+  const savedPurchases = saved.purchases
   const record: DayRecord = draft ? { ...saved, habits: draft.habits, purchases: draft.purchases } : saved
 
   const preview = scoringQuery.data
     ? previewScore(
         scoringQuery.data,
         record.habits,
-        record.purchases,
+        mergedPurchases,
       )
     : null
 
@@ -74,6 +104,8 @@ export default function DayView() {
 
   async function persist(nextDraft: Draft) {
     try {
+      // Purchases live in the finance ledger now — the day save manages habits
+      // only; embedded legacy purchases are preserved server-side when omitted.
       const result = await saveDayMutation.mutateAsync({
         habits: nextDraft.habits.map((h) => ({
           habitKey: h.habitKey,
@@ -81,7 +113,6 @@ export default function DayView() {
           details: h.details ?? undefined,
           reason: h.reason ?? undefined,
         })),
-        purchases: nextDraft.purchases,
       })
       setDraft({ habits: result.habits, purchases: result.purchases })
     } catch (err) {
@@ -99,13 +130,9 @@ export default function DayView() {
     void persist(nextDraft)
   }
 
-  function savePurchases(purchases: Purchase[]) {
-    void persist({ ...record, purchases })
-  }
-
   function clearDay() {
-    if (!window.confirm(`Clear all entries for ${date}?`)) return
-    void persist({ habits: [], purchases: [] })
+    if (!window.confirm(`Clear all entries for ${date}? This also removes that day's recorded expenses.`)) return
+    void deleteDay.mutateAsync(date).catch((err) => alert(err instanceof Error ? err.message : 'Could not clear the day'))
   }
 
   async function saveWeightForDay() {
@@ -123,7 +150,7 @@ export default function DayView() {
 
   const activeHabitModal = habitModal ? habitDefs.find((h) => h.key === habitModal) ?? null : null
   const thingsBought = habitDefs.find((h) => h.key === 'thingsBought')
-  const totalSpent = record.purchases.reduce((s, p) => s + p.amount, 0)
+  const totalSpent = mergedPurchases.reduce((s, p) => s + p.amount, 0)
 
   return (
     <div className="space-y-5">
@@ -188,15 +215,14 @@ export default function DayView() {
               >
                 <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${record.purchases.length > 0 ? 'border-good/60 bg-good/10 text-good' : 'border-line text-muted'}`}>
                   {record.purchases.length > 0 ? '✓' : '·'}
-                </span>
-                <span className="flex-1">
-                  <span className="block text-sm font-medium text-ink">{thingsBought.label}</span>
-                  {record.purchases.length > 0 ? (
-                    <span className="block text-xs text-muted">
-                      {record.purchases.length} purchase{record.purchases.length === 1 ? '' : 's'} · {formatINR(totalSpent)}
+                </span>                <span className="flex-1">
+                      <span className="block text-sm font-medium text-ink">{thingsBought.label}</span>
+                      {mergedPurchases.length > 0 ? (
+                        <span className="block text-xs text-muted">
+                          {mergedPurchases.length} purchase{mergedPurchases.length === 1 ? '' : 's'} · {formatINR(totalSpent)}
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
-                </span>
               </button>
             </li>
           )}
@@ -258,7 +284,13 @@ export default function DayView() {
         />
       )}
       {purchaseModal && (
-        <PurchaseModal purchases={record.purchases} saving={saveDayMutation.isPending} onSave={savePurchases} onClose={() => setPurchaseModal(false)} />
+        <PurchaseModal
+          date={date}
+          embedded={(draft?.purchases ?? savedPurchases).filter((p) => !p.transactionId)}
+          balances={balances}
+          thresholds={thresholds}
+          onClose={() => setPurchaseModal(false)}
+        />
       )}
     </div>
   )

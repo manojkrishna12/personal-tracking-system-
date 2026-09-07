@@ -33,13 +33,13 @@ export function setAuthCookie(res: Response, userId: string, email: string): voi
   const token = jwt.sign({ email }, env.jwtSecret, { subject: userId, expiresIn: '30d' })
   res.cookie('token', token, {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: env.isProd,
+    sameSite: env.cookieSameSite,
+    secure: env.isProd || env.cookieSameSite === 'none',
     maxAge: COOKIE_MAX_AGE_MS,
     path: '/',
   })
 }
 
 export function clearAuthCookie(res: Response): void {
-  res.clearCookie('token', { httpOnly: true, sameSite: 'strict', secure: env.isProd, path: '/' })
+  res.clearCookie('token', { httpOnly: true, sameSite: env.cookieSameSite, secure: env.isProd || env.cookieSameSite === 'none', path: '/' })
 }

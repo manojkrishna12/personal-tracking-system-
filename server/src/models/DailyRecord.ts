@@ -18,6 +18,10 @@ const purchaseSchema = new Schema(
     category: { type: String, required: true, maxlength: 40 },
     necessary: { type: Boolean, default: true },
     notes: { type: String, default: null, maxlength: 500 },
+    // Set ONLY when a legacy purchase is explicitly converted into the
+    // finance ledger (plan §11) — the stamp that keeps scoring and the
+    // ledger from double counting. New purchases never land here at all.
+    transactionId: { type: Schema.Types.ObjectId, ref: 'FinanceTransaction', default: null },
   },
   { _id: false },
 )

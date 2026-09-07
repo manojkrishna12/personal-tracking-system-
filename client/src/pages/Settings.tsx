@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, ErrorState, Input, LoadingState, SectionTitle, Select } from '../components/ui'
+import { OpeningBalanceEditor } from '../components/money/OpeningBalanceEditor'
 import { useAuth } from '../context/AuthContext'
 import { useHabits, useRecomputeScores, useSaveHabits, useSaveScoringConfig, useSaveSettings, useScoringConfig, useSettings } from '../hooks/useApi'
-import type { HabitDef, ScoringConfig } from '../api/types'
+import { useConvertLegacy, useFinanceOverview, useLegacyPurchases } from '../hooks/useFinance'
+import { rupeesToPaise } from '../lib/money'
+import type { HabitDef, ScoringConfig, WalletKey } from '../api/types'
 
 const TIMEZONES = ['Asia/Kolkata', 'Asia/Kathmandu', 'Asia/Dubai', 'Asia/Singapore', 'Asia/Tokyo', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'UTC']
 
@@ -25,6 +28,9 @@ export default function Settings() {
   const [goal, setGoal] = useState('')
   const [weekStart, setWeekStart] = useState<number>(1)
   const [timezone, setTimezone] = useState('Asia/Kolkata')
+  const [cashThreshold, setCashThreshold] = useState('')
+  const [phonepeThreshold, setPhonepeThreshold] = useState('')
+  const [legacyWallet, setLegacyWallet] = useState<WalletKey>('cash')
 
   const [baseline, setBaseline] = useState('60')
   const [excellent, setExcellent] = useState('75')
@@ -40,6 +46,9 @@ export default function Settings() {
       setGoal(String(settings.data.settings.weightGoalKg))
       setWeekStart(settings.data.settings.weekStartsOn)
       setTimezone(settings.data.settings.timezone)
+      const t = settings.data.settings.finance?.alertThresholdPaise
+      setCashThreshold(t ? String(t.cash / 100) : '500')
+      setPhonepeThreshold(t ? String(t.phonepe / 100) : '300')
     }
   }, [settings.data, goal])
 
@@ -69,6 +78,12 @@ export default function Settings() {
       weekStartsOn: weekStart,
       timezone,
       theme: settings.data!.settings.theme,
+      finance: {
+        alertThresholdPaise: {
+          cash: rupeesToPaise(Number(cashThreshold) || 0) ?? 0,
+          phonepe: rupeesToPaise(Number(phonepeThreshold) || 0) ?? 0,
+        },
+      },
     })
   }
 

@@ -1,6 +1,8 @@
-# Manoj Tracking System
+# SelfTrack — Personal Self-Tracking & Finance Analytics System
 
 A private, personal self-tracking dashboard. Every night, record how your day went — habits, purchases, and weight — and the app turns it into a daily score, weekly insights, monthly analytics and a year in review. Calm, minimal, no gamification.
+
+**SelfTrack also tracks your money.** A double-entry-style ledger with two wallets (Cash and PhonePe) records every rupee in and out: opening balances, money received, expenses, and reconciliations — with weekly/monthly analytics, a Dad money report, food/wasteful-spending analysis, low-balance alerts and CSV export.
 
 > **Not medical advice.** The daily score is a personal consistency/lifestyle metric, nothing more.
 
@@ -15,6 +17,8 @@ A private, personal self-tracking dashboard. Every night, record how your day we
 - **Weight tracking**: record measurements only when you actually take them; configurable goal (default 85 kg) with progress and trend chart.
 - **Strict streaks**: tracking streak = consecutive recorded days; habit streaks = consecutive ✓ days. No grace days.
 - **Privacy**: password auth, hashed passwords, httpOnly cookie sessions, every query scoped to your account.
+- **Money tracking**: an append-only transaction ledger is the single source of truth. Wallet balances are always *derived* from the ledger (never cached, nothing to drift). Transaction types: `opening_balance`, `money_received`, `expense`, `balance_adjustment`. Amounts are stored as integer paise. Expenses recorded from the daily view live **only** in the ledger (linked by date) — there is exactly one financial record per real-world expense, so nothing double counts. Editing/deleting any transaction recomputes balances and analytics immediately. Month boundaries never reset balances — money carries over.
+- **Finance reports**: where-did-my-money-go, Dad money report, food report, wasteful-spending analysis, weekly/monthly money-flow summaries (opening → received → spent → adjustments → ending), low-balance warnings, and CSV export filtered to the selected period.
 
 ## Tech stack
 
@@ -125,10 +129,55 @@ npm test
 - **Server**: unit tests for scoring (three-state matrix, caps, empty-day behavior), streaks, and weekly/monthly/year insights; API integration tests (register/seeds, day upsert + duplicate prevention, future-date rejection, client-score rejection, weight, cross-user isolation, recompute) against an in-memory MongoDB.
 - **Client**: score-preview mirror, HabitModal flow, MonthCalendar rendering.
 
-## Deployment (later)
+## Deployment (Vercel + Render + MongoDB Atlas)
 
-Not a priority today. When you deploy: point `MONGODB_URI` at MongoDB Atlas, set a strong `JWT_SECRET` and `NODE_ENV=production`, build the client (`npm run build`), and serve the API (the `dist/` folder can be served by Express or any static host).
+The intended production architecture keeps authentication cookies first-party: the Vercel frontend rewrites same-origin `/api/*` requests to the Render backend, so the browser never sees a cross-origin API and `SameSite=Lax` httpOnly cookies work unchanged.
+
+```
+Browser → https://<app>.vercel.app/api/*  --(Vercel rewrite)-->  https://<api>.onrender.com  -->  MongoDB Atlas
+```
+
+### Backend — Render Web Service
+
+| Setting | Value |
+|---|---|
+| Root Directory | `server` |
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Health Check Path | `/health` |
+
+Environment variables (set in the Render dashboard — never committed):
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | your MongoDB Atlas connection string |
+| `JWT_SECRET` | long random string |
+| `COOKIE_SAMESITE` | `lax` (correct for the same-origin rewrite) |
+| `CLIENT_ORIGIN` | optional — only needed for direct cross-origin API access |
+
+A `render.yaml` blueprint is included for one-click deploys.
+
+### Frontend — Vercel
+
+- Framework preset: **Vite** · Build: `npm run build` (root: `client`, output `client/dist`).
+- Set `VITE_API_URL` **empty/unset** so the client calls same-origin `/api`.
+- Edit `vercel.json` and replace `selftrack-api.onrender.com` with your Render service URL. The config includes the `/api` rewrite plus the SPA fallback for React Router.
+
+### MongoDB Atlas
+
+1. Create a free M0 cluster and a database user; allow Render's outbound IPs (or `0.0.0.0/0` for the free tier).
+2. **Back up before any migration**: `mongodump --uri="$MONGODB_URI"`.
+3. Put the connection string into `MONGODB_URI` on Render. Schema changes are additive and idempotent; run `npm run migrate:finance -w server` once if you have pre-finance purchase history.
+
+### Verifying a deployment
+
+- `GET /health` on the Render URL → `{"ok":true}` (plus Atlas connectivity).
+- Register/login from the deployed frontend, create an expense, hard-refresh the page, log out and back in — the record must persist.
+- Refresh a deep route (e.g. `/money`) — the SPA rewrite must serve the app, not a 404.
+- Confirm no secrets are committed: only `*.env.example` files are in git.
 
 ## Export your data
 
-`GET /api/export` (authenticated) returns a full JSON backup of your account — habits, records, weight entries and scoring config.
+- `GET /api/export` (authenticated) returns a full JSON backup of your account — habits, records, weight entries, scoring config and finance settings.
+- **Money → Export CSV** downloads your financial transactions (Date, Type, Item, Amount, Wallet, Category, Necessity, Source, Note) — Excel/Google-Sheets compatible, filtered to the currently selected period, or all time.

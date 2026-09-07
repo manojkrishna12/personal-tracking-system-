@@ -28,6 +28,13 @@ export const env = {
   // Frontend origin allowed to call this API with credentials (CORS).
   // Unset in local dev (the Vite proxy needs no CORS).
   clientOrigin: get('CLIENT_ORIGIN', ''),
+  // SameSite for the auth cookie. Default 'lax' works both for the Vite dev
+  // proxy and the production Vercel rewrite (same-origin). Set 'none' ONLY
+  // for a direct cross-origin frontend, together with a secure context.
+  cookieSameSite: ((): 'strict' | 'lax' | 'none' => {
+    const raw = get('COOKIE_SAMESITE', 'lax')
+    return raw === 'strict' || raw === 'none' ? raw : 'lax'
+  })(),
   nodeEnv,
   isProd,
 }

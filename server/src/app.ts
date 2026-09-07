@@ -13,6 +13,8 @@ import weightRoutes from './routes/weight'
 import settingsRoutes from './routes/settings'
 import insightsRoutes from './routes/insights'
 import exportRoutes from './routes/export'
+import financeRoutes from './routes/finance'
+import { originCheck } from './middleware/originCheck'
 
 export function createApp() {
   const app = express()
@@ -26,18 +28,24 @@ export function createApp() {
   }
   app.use(express.json({ limit: '100kb' }))
   app.use(cookieParser())
+  // CSRF guard for state-changing requests (plan §19) — a no-op under the
+  // same-origin Vercel rewrite, protective for direct cross-origin modes.
+  app.use(originCheck)
 
   // Liveness probe for the host (Render health check).
   app.get('/health', (_req, res) => {
     res.json({ ok: true })
   })
 
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
+  // Rate limiters are skipped in the test environment — the integration
+  // suite shares one IP and would exhaust them within a few tests.
+  const makeLimiter = (limit: number) =>
+    env.nodeEnv === 'test'
+      ? (_req: unknown, _res: unknown, next: () => void) => next()
+      : rateLimit({ windowMs: 15 * 60 * 1000, limit, standardHeaders: true, legacyHeaders: false })
+  const authLimiter = makeLimiter(20)
+  // Generous but bounded — covers reads and all finance mutations.
+  const financeLimiter = makeLimiter(300)
 
   app.use('/api/auth', authLimiter, authRoutes)
   app.use('/api/days', authRequired, daysRoutes)
@@ -46,6 +54,8 @@ export function createApp() {
   app.use('/api/settings', authRequired, settingsRoutes)
   app.use('/api/insights', authRequired, insightsRoutes)
   app.use('/api/export', authRequired, exportRoutes)
+  // Finance reads and mutations are rate-limited (plan §18).
+  app.use('/api/finance', financeLimiter, authRequired, financeRoutes)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

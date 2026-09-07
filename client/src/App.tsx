@@ -4,8 +4,10 @@ import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import DayView from './pages/DayView'
 import Login from './pages/Login'
+import Money from './pages/Money'
 import Monthly from './pages/Monthly'
 import Register from './pages/Register'
+import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Weekly from './pages/Weekly'
 import Weight from './pages/Weight'
@@ -26,6 +28,8 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/day/:date" element={<DayView />} />
+        <Route path="/money" element={<Money />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/insights/weekly" element={<Weekly />} />
         <Route path="/insights/monthly" element={<Monthly />} />
         <Route path="/insights/year" element={<Year />} />

@@ -280,8 +280,9 @@ export function computeYearReview(args: {
   weightEntries: WeightLike[]
   habitDefs: HabitDefLike[]
   directions: Directions
+  extraPurchases?: { count: number; amount: number }
 }): YearReviewResult {
-  const { year, records, weightEntries, habitDefs, directions } = args
+  const { year, records, weightEntries, habitDefs, directions, extraPurchases } = args
   const tracked = records.filter((r) => r.score != null)
   const qualityCounts = { excellent: 0, average: 0, poor: 0 }
   for (const r of tracked) {
@@ -292,7 +293,7 @@ export function computeYearReview(args: {
   const counts = completedCounts(records)
 
   const purchases = records.flatMap((r) => r.purchases ?? [])
-  const totalPurchaseAmount = purchases.reduce((s, p) => s + p.amount, 0)
+  const totalPurchaseAmount = purchases.reduce((s, p) => s + p.amount, 0) + (extraPurchases?.amount ?? 0)
 
   const done = habitDoneDates(records)
   const yearEnd = `${year}-12-31`
@@ -328,7 +329,7 @@ export function computeYearReview(args: {
     trackedDays: tracked.length,
     qualityCounts,
     counts,
-    totalPurchases: purchases.length,
+    totalPurchases: purchases.length + (extraPurchases?.count ?? 0),
     totalPurchaseAmount,
     bestStreaks,
     mostConsistentHabit,

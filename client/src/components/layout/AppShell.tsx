@@ -5,9 +5,9 @@ import { useSaveSettings } from '../../hooks/useApi'
 
 const NAV = [
   { to: '/', label: 'Calendar', end: true },
-  { to: '/insights/weekly', label: 'Weekly', end: true },
-  { to: '/insights/monthly', label: 'Monthly', end: true },
-  { to: '/insights/year', label: 'Year', end: true },
+  { to: '/money', label: 'Money', end: true },
+  { to: '/insights/weekly', label: 'Insights', end: true },
+  { to: '/reports', label: 'Reports', end: true },
   { to: '/weight', label: 'Weight', end: true },
   { to: '/settings', label: 'Settings', end: true },
 ]
@@ -43,8 +43,8 @@ export function AppShell() {
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 hidden w-52 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
         <div className="mb-8 px-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Manoj</div>
-          <div className="text-sm font-semibold text-ink">Tracking System</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">SelfTrack</div>
+          <div className="text-sm font-semibold text-ink">Personal tracking & money</div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5">
           {NAV.map((item) => (
@@ -79,8 +79,8 @@ export function AppShell() {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/90 px-4 py-3 backdrop-blur lg:hidden">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">Manoj</div>
-          <div className="text-sm font-semibold">Tracking System</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">SelfTrack</div>
+          <div className="text-sm font-semibold">Personal tracking & money</div>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

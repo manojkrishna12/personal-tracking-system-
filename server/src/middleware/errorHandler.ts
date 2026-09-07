@@ -1,11 +1,17 @@
 import type { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
+import { FinanceError } from '../finance/errors'
 
 export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}` } })
 }
 
 export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
+  if (err instanceof FinanceError) {
+    res.status(err.status).json({ error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) } })
+    return
+  }
+
   if (err instanceof ZodError) {
     res.status(400).json({
       error: {
@@ -18,7 +24,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
   }
 
   if (typeof err === 'object' && err !== null && (err as { code?: number }).code === 11000) {
-    res.status(409).json({ error: { code: 'DUPLICATE', message: 'A record for this date already exists' } })
+    res.status(409).json({ error: { code: 'DUPLICATE', message: 'This record already exists' } })
     return
   }
 

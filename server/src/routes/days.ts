@@ -4,6 +4,7 @@ import { HabitDefinition } from '../models/HabitDefinition'
 import { ScoringConfig } from '../models/ScoringConfig'
 import { User } from '../models/User'
 import { computeScore, type ScoreBreakdownItem, type ScoringConfigData } from '../services/scoring'
+import { mergedPurchasesForDate, clearDayExpenses, withTransaction } from '../finance/ledger'
 import { isFutureDate, isValidDateString, isValidMonthString, monthBounds, todayInTz } from '../utils/dates'
 import { saveDaySchema } from '../validation/schemas'
 import { validate } from '../middleware/validate'
@@ -92,7 +93,7 @@ router.put('/:date', validate(saveDaySchema), async (req: AuthRequest, res) => {
   }
 
   const { config, labels, keys } = await loadScoringData(req.user!.id)
-  const body = req.body as { habits: HabitEntryInput[]; purchases: PurchaseInput[] }
+  const body = req.body as { habits: HabitEntryInput[]; purchases?: PurchaseInput[] }
 
   for (const h of body.habits) {
     if (!keys.has(h.habitKey)) {
@@ -113,13 +114,29 @@ router.put('/:date', validate(saveDaySchema), async (req: AuthRequest, res) => {
       reason: h.reason ?? undefined,
     }))
 
+  // Legacy compatibility (plan §11): the new client manages purchases in the
+  // finance ledger and omits the field entirely — embedded purchases are then
+  // preserved untouched. A field sent by an old client still replaces them.
+  const includePurchases = body.purchases !== undefined
   const record = await DailyRecord.findOneAndUpdate(
     { userId: req.user!.id, date },
-    { $set: { habits, purchases: body.purchases } },
+    includePurchases ? { $set: { habits, purchases: body.purchases } } : { $set: { habits } },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   )
 
-  const result = computeScore(config, habits, body.purchases, labels)
+  // Merged purchase view (plan §0/§11): legacy embedded purchases without a
+  // transactionId + ledger expenses dated this day — exactly one entry per
+  // real-world expense reaches the authoritative scoring.
+  const merged = await mergedPurchasesForDate(req.user!.id, date)
+  const purchaseInputs: PurchaseInput[] = merged.map((p) => ({
+    item: p.item,
+    amount: p.amount,
+    category: p.category,
+    necessary: p.necessary,
+    notes: p.notes,
+  }))
+
+  const result = computeScore(config, habits, purchaseInputs, labels)
   await DailyRecord.updateOne(
     { _id: record._id },
     {
@@ -158,7 +175,13 @@ router.delete('/:date', async (req: AuthRequest, res) => {
     res.status(400).json({ error: { code: 'FUTURE_DATE', message: 'Future dates cannot be modified' } })
     return
   }
-  await DailyRecord.deleteOne({ userId: req.user!.id, date })
+  // Clearing a day removes the record AND that date's ledger expenses
+  // together (plan §0 — clear-day lifecycle). Session-wrapped on Atlas;
+  // idempotent sequential fallback elsewhere.
+  await withTransaction(async (session) => {
+    await DailyRecord.deleteOne({ userId: req.user!.id, date }).session(session)
+    await clearDayExpenses(req.user!.id, date, session)
+  })
   res.status(204).end()
 })
 
