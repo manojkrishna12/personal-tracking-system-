@@ -162,10 +162,10 @@ A `render.yaml` blueprint is included for one-click deploys.
 
 ### Frontend — Vercel
 
-- Framework preset: **Vite** · **Root Directory: leave blank** (repo root — `vercel.json` at the root already sets the build command and `client/dist` output).
+- **Root Directory: `client`** · Framework preset: **Vite** (`client/vercel.json` pins it).
+- Build, output (`dist`) and rewrites come from `client/vercel.json` — Vercel only reads `vercel.json` from the Root Directory, so a copy lives there. Its `installCommand` installs the npm workspace from the root lockfile for deterministic dependency resolution.
 - Set `VITE_API_URL` **empty/unset** so the client calls same-origin `/api`.
-- Do not set Root Directory to `client` — the root `vercel.json` would not be picked up.
-- Edit `vercel.json` and replace `selftrack-api.onrender.com` with your Render service URL. The config includes the `/api` rewrite plus the SPA fallback for React Router.
+- Edit `client/vercel.json` (and the root `vercel.json`) and replace `selftrack-api.onrender.com` with your Render service URL. The rewrite keeps the `/api` same-origin proxy plus the SPA fallback for React Router.
 
 ### MongoDB Atlas
 
