@@ -3,7 +3,7 @@ import { Button, Card, ErrorState, Input, LoadingState, SectionTitle, Select } f
 import { OpeningBalanceEditor } from '../components/money/OpeningBalanceEditor'
 import { useAuth } from '../context/AuthContext'
 import { useHabits, useRecomputeScores, useSaveHabits, useSaveScoringConfig, useSaveSettings, useScoringConfig, useSettings } from '../hooks/useApi'
-import { useConvertLegacy, useFinanceOverview, useLegacyPurchases } from '../hooks/useFinance'
+import { useSaveFinanceSettings } from '../hooks/useFinance'
 import { rupeesToPaise } from '../lib/money'
 import type { HabitDef, ScoringConfig, WalletKey } from '../api/types'
 
@@ -21,6 +21,7 @@ export default function Settings() {
   const habits = useHabits()
 
   const saveSettings = useSaveSettings()
+  const saveFinance = useSaveFinanceSettings()
   const saveScoring = useSaveScoringConfig()
   const saveHabits = useSaveHabits()
   const recompute = useRecomputeScores()
@@ -84,6 +85,13 @@ export default function Settings() {
           phonepe: rupeesToPaise(Number(phonepeThreshold) || 0) ?? 0,
         },
       },
+    })
+  }
+
+  async function saveThresholds() {
+    await saveFinance.mutateAsync({
+      cash: rupeesToPaise(Number(cashThreshold) || 0) ?? 0,
+      phonepe: rupeesToPaise(Number(phonepeThreshold) || 0) ?? 0,
     })
   }
 
@@ -163,6 +171,41 @@ export default function Settings() {
           <div className="flex justify-end">
             <Button onClick={savePrefs} disabled={saveSettings.isPending}>
               {saveSettings.isPending ? 'Saving…' : 'Save preferences'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle sub="Warn on the Money page when a wallet balance falls below its threshold. Set 0 to disable an alert.">Money</SectionTitle>
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-muted">Cash low-balance threshold (₹)</label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={cashThreshold}
+                onChange={(e) => setCashThreshold(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted">PhonePe low-balance threshold (₹)</label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={phonepeThreshold}
+                onChange={(e) => setPhonepeThreshold(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            {saveFinance.isError && <span className="text-xs text-muted">Could not save thresholds.</span>}
+            {saveFinance.isSuccess && <span className="text-xs text-muted">Thresholds saved.</span>}
+            <Button onClick={saveThresholds} disabled={saveFinance.isPending}>
+              {saveFinance.isPending ? 'Saving…' : 'Save thresholds'}
             </Button>
           </div>
         </div>

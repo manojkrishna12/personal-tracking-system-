@@ -146,6 +146,8 @@ Browser → https://<app>.vercel.app/api/*  --(Vercel rewrite)-->  https://<api>
 | Start Command | `npm start` |
 | Health Check Path | `/health` |
 
+The app sets `trust proxy = 1` (Render's single proxy hop) so rate limiting keys on the real client IP.
+
 Environment variables (set in the Render dashboard — never committed):
 
 | Variable | Value |
@@ -154,14 +156,15 @@ Environment variables (set in the Render dashboard — never committed):
 | `MONGODB_URI` | your MongoDB Atlas connection string |
 | `JWT_SECRET` | long random string |
 | `COOKIE_SAMESITE` | `lax` (correct for the same-origin rewrite) |
-| `CLIENT_ORIGIN` | optional — only needed for direct cross-origin API access |
+| `CLIENT_ORIGIN` | **required** — your Vercel frontend origin, e.g. `https://<app>.vercel.app`. Requests arrive at Render with a Vercel `Origin` header; without this the CSRF origin check rejects state-changing API calls (403). |
 
 A `render.yaml` blueprint is included for one-click deploys.
 
 ### Frontend — Vercel
 
-- Framework preset: **Vite** · Build: `npm run build` (root: `client`, output `client/dist`).
+- Framework preset: **Vite** · **Root Directory: leave blank** (repo root — `vercel.json` at the root already sets the build command and `client/dist` output).
 - Set `VITE_API_URL` **empty/unset** so the client calls same-origin `/api`.
+- Do not set Root Directory to `client` — the root `vercel.json` would not be picked up.
 - Edit `vercel.json` and replace `selftrack-api.onrender.com` with your Render service URL. The config includes the `/api` rewrite plus the SPA fallback for React Router.
 
 ### MongoDB Atlas

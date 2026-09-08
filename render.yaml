@@ -22,6 +22,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_ORIGIN
-        sync: false # your deployed frontend origin (only needed for direct cross-origin access)
+        sync: false # REQUIRED — your Vercel frontend origin (e.g. https://<app>.vercel.app). Requests arrive at Render with a Vercel Origin header; without this, the CSRF origin check rejects state-changing API calls.
       - key: COOKIE_SAMESITE
         value: lax # correct for the Vercel same-origin /api rewrite

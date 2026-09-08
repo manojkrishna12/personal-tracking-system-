@@ -19,6 +19,13 @@ import { originCheck } from './middleware/originCheck'
 export function createApp() {
   const app = express()
 
+  // Hosted behind exactly one reverse-proxy hop (Render's load balancer).
+  // Required for express-rate-limit to key limits on the real client IP —
+  // without it, express-rate-limit rejects every request carrying
+  // X-Forwarded-For (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) and all clients
+  // would share the LB's IP. Render docs recommend a value of 1.
+  app.set('trust proxy', 1)
+
   // Helmet's strict CSP is fine for the built app but blocks Vite dev/HMR.
   app.use(helmet({ contentSecurityPolicy: env.isProd ? undefined : false }))
   // Allow the deployed frontend (a different origin) to call this API with cookies.
