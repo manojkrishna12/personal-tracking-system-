@@ -14,6 +14,33 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
   )
 }
 
+/**
+ * Reverse-goal motivation card — Maggie: every explicit ✗ day extends the run.
+ * Derived server-side from the daily records, so past edits recalculate it.
+ */
+export function MaggieStreakCard({ streaks }: { streaks: Streaks }) {
+  const current = streaks.avoidHabits?.['maggie']?.current ?? 0
+  const best = streaks.avoidHabits?.['maggie']?.best ?? 0
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">Maggie streak</div>
+        <span aria-hidden="true" className="text-base leading-none">🔥</span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <div className="text-3xl font-semibold text-ink">{current}</div>
+        <div className="text-sm text-muted">{current === 1 ? 'day' : 'days'}</div>
+      </div>
+      <div className="mt-1 text-xs text-muted">
+        {current === 0 ? 'Start your streak today — skip the Maggie.' : 'Keep going — every day counts.'}
+      </div>
+      {best > 0 && (
+        <div className="mt-2 text-[11px] text-muted">Best: {pluralDays(best)} without Maggie</div>
+      )}
+    </Card>
+  )
+}
+
 export function StreakCard({ streaks, habitLabels }: { streaks: Streaks; habitLabels: Record<string, string> }) {
   const rows: { key: string; label: string; value: number }[] = [
     { key: 'tracking', label: 'Tracked every day', value: streaks.tracking.current },

@@ -56,13 +56,21 @@ router.get('/streaks', async (req: AuthRequest, res) => {
   const records = await DailyRecord.find({ userId }).select('date habits').lean()
   const recorded = records.map((r) => r.date)
   const habitCompletedDates: Record<string, string[]> = {}
+  const habitNotCompletedDates: Record<string, string[]> = {}
   for (const r of records) {
     for (const h of r.habits) {
       if (h.status === 'completed') (habitCompletedDates[h.habitKey] ??= []).push(r.date)
+      else if (h.status === 'not_completed') (habitNotCompletedDates[h.habitKey] ??= []).push(r.date)
     }
   }
+  // Reverse-goal streaks (success = explicit ✗) only make sense for
+  // negative-direction habits — e.g. Maggie: avoiding it is the win.
+  const { directions } = await loadHabitContext(userId)
+  const avoidDates = Object.fromEntries(
+    Object.entries(habitNotCompletedDates).filter(([key]) => directions[key] === 'negative'),
+  )
   const today = todayInTz(user?.settings?.timezone ?? 'Asia/Kolkata')
-  const result = computeStreaks(recorded, habitCompletedDates, today)
+  const result = computeStreaks(recorded, habitCompletedDates, today, avoidDates)
   res.json({ data: result })
 })
 

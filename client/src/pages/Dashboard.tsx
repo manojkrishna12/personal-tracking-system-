@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MonthCalendar from '../components/calendar/MonthCalendar'
-import { MonthCard, StreakCard, WeightGoalCard } from '../components/dashboard/SummaryCards'
+import { MaggieStreakCard, MonthCard, StreakCard, WeightGoalCard } from '../components/dashboard/SummaryCards'
 import { ErrorState, IconButton, LoadingState } from '../components/ui'
 import { MoneyOverview } from '../components/money/WalletCards'
 import { AddMoneyModal } from '../components/money/AddMoneyModal'
@@ -74,6 +74,7 @@ export default function Dashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StreakCard streaks={streaks.data!} habitLabels={habitLabels} />
+        <MaggieStreakCard streaks={streaks.data!} />
         <MonthCard month={month} days={monthDays.data!.days} today={today} />
         <div className="sm:col-span-2 lg:col-span-1">
           <WeightGoalCard entries={weight.data!.entries} settings={settings?.settings ?? { weightGoalKg: 85, weekStartsOn: 1, timezone: 'Asia/Kolkata', theme: 'light' }} />

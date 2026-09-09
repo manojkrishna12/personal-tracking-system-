@@ -3,7 +3,13 @@ import mongoose from 'mongoose'
 import request from 'supertest'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import { createApp } from '../src/app'
+import { addDaysStr, todayInTz } from '../src/utils/dates'
 import type { Express } from 'express'
+
+// The streaks route anchors on the real today in the user's timezone (default
+// Asia/Kolkata), so the avoid-streak tests build their chains from the same
+// value rather than the test machine's local clock.
+const TODAY = todayInTz('Asia/Kolkata')
 
 let mongod: MongoMemoryServer
 let app: Express
@@ -191,5 +197,52 @@ describe('days', () => {
     expect(res.status).toBe(200)
     expect(res.body.data.records).toHaveLength(1)
     expect(res.body.data.habits).toHaveLength(7)
+  })
+
+  it('computes the Maggie avoid streak from explicit ✗ days and recalculates on edits', async () => {
+    const agent = await registerAgent('maggie@example.com')
+    const putMaggie = (date: string, status: 'completed' | 'not_completed') =>
+      agent.put(`/api/days/${date}`).send({ habits: [{ habitKey: 'maggie', status }] })
+
+    const d4 = TODAY
+    const d3 = addDaysStr(d4, -1)
+    const d2 = addDaysStr(d4, -2)
+    const d1 = addDaysStr(d4, -3)
+
+    // Four consecutive ✗ days ending today → streak 4 (today included).
+    for (const d of [d1, d2, d3, d4]) await putMaggie(d, 'not_completed')
+    let streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['maggie']).toEqual({ current: 4, best: 4 })
+
+    // Today ✓ → the streak breaks to 0; the earlier best run survives.
+    await putMaggie(d4, 'completed')
+    streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['maggie']).toEqual({ current: 0, best: 3 })
+
+    // ✗ resumes today after the ✓ day → counts again.
+    await putMaggie(d4, 'not_completed')
+    streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['maggie']).toEqual({ current: 4, best: 4 })
+
+    // Historical edit: d3 ✓ → recalculates to today's run of 1; best shrinks.
+    await putMaggie(d3, 'completed')
+    streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['maggie']).toEqual({ current: 1, best: 2 })
+
+    // Restore d3, then wipe d2's record entirely (Not Recorded ≠ ✗):
+    // only today + d3 count toward current.
+    await putMaggie(d3, 'not_completed')
+    await agent.put(`/api/days/${d2}`).send({ habits: [] })
+    streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['maggie']).toEqual({ current: 2, best: 2 })
+  })
+
+  it('reports avoid streaks only for negative-direction habits', async () => {
+    const agent = await registerAgent('avoid@example.com')
+    // study is positive-direction: its ✗ days must NOT create an avoid streak.
+    await agent.put(`/api/days/${TODAY}`).send({ habits: [{ habitKey: 'study', status: 'not_completed' }, { habitKey: 'junkFood', status: 'not_completed' }] })
+    const streaks = await agent.get('/api/insights/streaks')
+    expect(streaks.body.data.avoidHabits['study']).toBeUndefined()
+    expect(streaks.body.data.avoidHabits['junkFood']).toEqual({ current: 1, best: 1 })
   })
 })

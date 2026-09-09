@@ -73,6 +73,8 @@ export interface StreakResult {
 export interface Streaks {
   tracking: StreakResult
   habits: Record<string, StreakResult>
+  /** Reverse-goal habits (success = explicitly ✗) — e.g. Maggie. */
+  avoidHabits?: Record<string, StreakResult>
 }
 
 export interface WeeklyInsights {
