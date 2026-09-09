@@ -43,9 +43,9 @@ export function AppShell() {
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 hidden w-52 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
         <div className="mb-8 px-2">
-          <img src="/manoj-logo.png" alt="Manoj signature logo" className="mb-3 h-10 w-10 rounded-full" />
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">SelfTrack</div>
-          <div className="text-sm font-semibold text-ink">Personal tracking & money</div>
+          <img src="/manoj-logo.png" alt="Manoj signature logo" className="mx-auto mb-4 h-[72px] w-[72px] rounded-full" />
+          <div className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">SelfTrack</div>
+          <div className="text-center text-sm font-semibold text-ink">Personal tracking & money</div>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5">
           {NAV.map((item) => (
@@ -80,7 +80,7 @@ export function AppShell() {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/90 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
-          <img src="/manoj-logo.png" alt="Manoj signature logo" className="h-7 w-7 shrink-0 rounded-full" />
+          <img src="/manoj-logo.png" alt="Manoj signature logo" className="h-8 w-8 shrink-0 rounded-full" />
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">SelfTrack</div>
             <div className="text-sm font-semibold">Personal tracking & money</div>
