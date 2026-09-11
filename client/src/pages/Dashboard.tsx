@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MonthCalendar from '../components/calendar/MonthCalendar'
 import { MaggieStreakCard, MonthCard, StreakCard, WeightGoalCard } from '../components/dashboard/SummaryCards'
+import { TodayHabitsCard, TodayProgressCard } from '../components/dashboard/TodayProgress'
 import { ErrorState, IconButton, LoadingState } from '../components/ui'
 import { MoneyOverview } from '../components/money/WalletCards'
 import { AddMoneyModal } from '../components/money/AddMoneyModal'
@@ -9,7 +10,7 @@ import { AddExpenseModal } from '../components/money/AddExpenseModal'
 import { OpeningBalanceEditor } from '../components/money/OpeningBalanceEditor'
 import { ReconcileModal } from '../components/money/ReconcileModal'
 import { useFinanceOverview } from '../hooks/useFinance'
-import { useHabits, useMonthDays, useSettings, useStreaks, useWeight } from '../hooks/useApi'
+import { useHabits, useMe, useMonthDays, useSettings, useStreaks, useWeight } from '../hooks/useApi'
 import { currentMonth, monthLabel, todayInTz } from '../lib/dates'
 import type { WalletKey } from '../api/types'
 
@@ -19,9 +20,24 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+function greeting(hour: number): string {
+  if (hour < 5) return 'Good night'
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const QUOTES = [
+  'Small consistent steps create big results.',
+  'Discipline today, a better tomorrow.',
+  'A little progress each day adds up to big results.',
+  'Track your today. Build your tomorrow.',
+]
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { data: settings } = useSettings()
+  const { data: me } = useMe()
   const tz = settings?.settings.timezone
   const today = useMemo(() => todayInTz(tz), [tz])
   const [month, setMonth] = useState(() => currentMonth(tz))
@@ -54,11 +70,22 @@ export default function Dashboard() {
   }
   const reconcileWallet = financeData && reconcile ? financeData.wallets.find((w) => w.key === reconcile) ?? null : null
 
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: tz || 'Asia/Kolkata' }).format(new Date()))
+  const quote = QUOTES[Number(today.slice(8, 10)) % QUOTES.length]!
+  const firstName = (me?.user.name ?? 'there').split(' ')[0]!
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-ink">Your day, at a glance</h1>
-      </div>
+      {/* Greeting header */}
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">{today}</div>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            {greeting(hour)}, <span className="text-gradient">{firstName}</span> 👋
+          </h1>
+          <p className="mt-1 text-sm text-muted">“{quote}”</p>
+        </div>
+      </header>
 
       {financeData && (
         <section>
@@ -73,17 +100,19 @@ export default function Dashboard() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StreakCard streaks={streaks.data!} habitLabels={habitLabels} />
+        <TodayProgressCard today={today} tz={tz ?? 'Asia/Kolkata'} />
         <MaggieStreakCard streaks={streaks.data!} />
         <MonthCard month={month} days={monthDays.data!.days} today={today} />
+        <TodayHabitsCard today={today} />
+        <StreakCard streaks={streaks.data!} habitLabels={habitLabels} />
         <div className="sm:col-span-2 lg:col-span-1">
           <WeightGoalCard entries={weight.data!.entries} settings={settings?.settings ?? { weightGoalKg: 85, weekStartsOn: 1, timezone: 'Asia/Kolkata', theme: 'light' }} />
         </div>
       </div>
 
-      <div className="rounded-lg border border-line bg-surface p-4 sm:p-6">
+      <div className="card-glass rounded-2xl border border-line p-4 backdrop-blur-sm sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <div className="text-sm font-semibold uppercase tracking-wider text-muted">{monthLabel(month)}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{monthLabel(month)}</div>
           <div className="flex items-center gap-1.5">
             <IconButton onClick={() => setMonth((m) => shiftMonth(m, -1))} aria-label="Previous month">‹</IconButton>
             <IconButton onClick={() => setMonth((m) => (m === currentMonth(tz) ? m : currentMonth(tz)))}>Today</IconButton>

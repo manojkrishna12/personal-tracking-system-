@@ -12,36 +12,60 @@
   --color-good: var(--good);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
 }
 
+/* ------------------------------------------------------------------
+   Light theme (root) — clean, soft, premium-neutral.
+   ------------------------------------------------------------------ */
 :root {
-  --bg: #f6f6f4;
+  --bg: #f4f5f8;
   --surface: #ffffff;
-  --surface-2: #efeeea;
-  --ink: #1d1d1a;
-  --muted: #6f6e67;
-  --line: #e3e1da;
-  --good: #4a7d5c;
-  --warn: #a97c33;
-  --bad: #a94d40;
-  --good-soft: rgba(74, 125, 92, 0.12);
-  --warn-soft: rgba(169, 124, 51, 0.12);
-  --bad-soft: rgba(169, 77, 64, 0.12);
+  --surface-2: #eef0f5;
+  --ink: #171a21;
+  --muted: #676e7e;
+  --line: #e4e7ee;
+  --good: #199d6d;
+  --warn: #b07c22;
+  --bad: #d14d5d;
+  --accent: #6d5ae8;
+  --accent-2: #0891b2;
+  --good-soft: rgba(25, 157, 109, 0.12);
+  --warn-soft: rgba(176, 124, 34, 0.12);
+  --bad-soft: rgba(209, 77, 93, 0.1);
+  --accent-soft: rgba(109, 90, 232, 0.1);
+  --glow-good: rgba(25, 157, 109, 0.25);
+  --glow-accent: rgba(109, 90, 232, 0.22);
+  --glow-warm: rgba(176, 124, 34, 0.25);
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
+  --card-shadow-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 16px 32px -12px rgba(16, 24, 40, 0.18);
 }
 
+/* ------------------------------------------------------------------
+   Dark theme — deep space glass. Default experience.
+   ------------------------------------------------------------------ */
 .dark {
-  --bg: #111214;
-  --surface: #181a1e;
-  --surface-2: #202228;
-  --ink: #e9e8e4;
-  --muted: #9b9a92;
-  --line: #2b2d33;
-  --good: #7caf8e;
-  --warn: #c49a5f;
-  --bad: #cf7d70;
-  --good-soft: rgba(124, 175, 142, 0.14);
-  --warn-soft: rgba(196, 154, 95, 0.14);
-  --bad-soft: rgba(207, 125, 112, 0.14);
+  --bg: #07090e;
+  --surface: #10141c;
+  --surface-2: #171d28;
+  --ink: #edf0f7;
+  --muted: #8b93a7;
+  --line: #222937;
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #fb7185;
+  --accent: #8b7cf8;
+  --accent-2: #38bdf8;
+  --good-soft: rgba(52, 211, 153, 0.13);
+  --warn-soft: rgba(251, 191, 36, 0.13);
+  --bad-soft: rgba(251, 113, 133, 0.12);
+  --accent-soft: rgba(139, 124, 248, 0.14);
+  --glow-good: rgba(52, 211, 153, 0.35);
+  --glow-accent: rgba(139, 124, 248, 0.35);
+  --glow-warm: rgba(251, 146, 60, 0.35);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+  --card-shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 20px 44px -16px rgba(0, 0, 0, 0.7);
 }
 
 html {
@@ -55,6 +79,7 @@ html {
     Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -62,13 +87,86 @@ body {
   color: var(--ink);
 }
 
-/* Minimal focus style */
+/* Static aurora wash — pure CSS, zero animation cost. */
+.bg-aurora {
+  background-image:
+    radial-gradient(1100px 520px at 12% -8%, var(--accent-soft), transparent 60%),
+    radial-gradient(900px 480px at 95% 4%, var(--good-soft), transparent 55%),
+    radial-gradient(760px 420px at 55% 110%, var(--accent-soft), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Frosted card surface layered over the aurora. */
+.card-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.82));
+  box-shadow: var(--card-shadow);
+}
+.dark .card-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+}
+
+/* Brand gradient text. */
+.text-gradient {
+  background: linear-gradient(92deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Primary gradient action. */
+.btn-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 4px 16px -6px var(--glow-accent);
+}
+.btn-gradient:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px -6px var(--glow-accent);
+}
+
+/* Entrance animation — one-shot, subtle. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anim-rise {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Progress ring draw-in. */
+.ring-anim {
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Soft focus ring in brand color. */
 :focus-visible {
-  outline: 2px solid var(--muted);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 ::selection {
-  background: var(--good-soft);
+  background: var(--accent-soft);
+}
+
+/* Respect reduced-motion: kill entrances/transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .ring-anim {
+    animation: none !important;
+    transition: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
