@@ -27,11 +27,12 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <div className="mb-6">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Manoj</div>
-          <h1 className="text-lg font-semibold text-ink">Tracking System</h1>
+    <div className="bg-aurora flex min-h-screen items-center justify-center px-4">
+      <Card className="anim-rise w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <img src="/manoj-logo.png" alt="Manoj signature logo" className="mb-4 h-16 w-16 rounded-full shadow-[0_0_28px_rgba(139,124,248,0.3)]" />
+          <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted">SelfTrack</div>
+          <h1 className="text-lg font-semibold text-ink">Personal tracking & money</h1>
           <p className="mt-1 text-sm text-muted">Your private daily record.</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-3">
@@ -39,7 +40,7 @@ export default function Register() {
           <Input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           <Input type="password" required placeholder="Password (min 8 characters)" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
           {error ? <p className="text-sm text-bad">{error}</p> : null}
-          <Button type="submit" disabled={busy} className="w-full">
+          <Button type="submit" variant="accent" disabled={busy} className="w-full">
             {busy ? 'Creating account…' : 'Create account'}
           </Button>
         </form>
