@@ -153,7 +153,7 @@ export default function DayView() {
   const totalSpent = mergedPurchases.reduce((s, p) => s + p.amount, 0)
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <DayNav date={date} />
 
       {isFuture && (
@@ -181,13 +181,14 @@ export default function DayView() {
                     disabled={isFuture}
                   >
                     <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${
+                      key={entry?.status ?? 'none'}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs transition-colors ${
                         entry?.status === 'completed'
                           ? 'border-good/60 bg-good/10 text-good'
                           : entry?.status === 'not_completed'
                             ? 'border-warn/60 bg-warn/10 text-warn'
                             : 'border-line text-muted'
-                      }`}
+                      } ${entry?.status ? 'anim-pop' : ''}`}
                     >
                       {entry?.status === 'completed' ? '✓' : entry?.status === 'not_completed' ? '✗' : '·'}
                     </span>

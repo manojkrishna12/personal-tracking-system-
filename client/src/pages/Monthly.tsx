@@ -35,7 +35,7 @@ export default function Monthly() {
   const negativeTotal = (data.counts['junkFood'] ?? 0) + (data.counts['eatOutside'] ?? 0) + (data.counts['maggie'] ?? 0)
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-ink">{monthLabel(month)}</h1>
         <div className="flex items-center gap-1.5">

@@ -46,7 +46,7 @@ export default function Reports() {
   const d = analytics.data
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-ink">Money reports</h1>
         <PeriodSelector period={period} custom={custom} onPeriod={setPeriod} onCustom={(c) => setCustom({ from: c.from || today, to: c.to || today })} />

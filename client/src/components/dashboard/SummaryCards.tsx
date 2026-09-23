@@ -4,6 +4,8 @@ import type { MonthDay, Streaks, WeightEntry, UserSettings } from '../../api/typ
 import { formatKg, pluralDays } from '../../lib/format'
 import { daysInMonthElapsed } from '../../lib/dates'
 
+const MAGGIE_MILESTONES = new Set([3, 7, 14, 30, 60, 100])
+
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div>
@@ -17,20 +19,31 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 /**
  * Reverse-goal motivation card — Maggie: every explicit ✗ day extends the run.
  * Derived server-side from the daily records, so past edits recalculate it.
+ * Motion is display-only: the value itself always comes from the API.
  */
 export function MaggieStreakCard({ streaks }: { streaks: Streaks }) {
   const current = streaks.avoidHabits?.['maggie']?.current ?? 0
   const best = streaks.avoidHabits?.['maggie']?.best ?? 0
+  // One-shot pop on every streak change; a stronger (still tasteful) flash at
+  // milestones. `key` remounts the span so the CSS animation replays.
+  const milestone = MAGGIE_MILESTONES.has(current)
   return (
     <div className="card-glass relative overflow-hidden rounded-2xl border border-warn/30 p-4 backdrop-blur-sm shadow-[0_0_36px_-10px_var(--glow-warm)] sm:p-5">
       {/* warm accent wash */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(420px_160px_at_85%_0%,var(--warn-soft),transparent_70%)]" aria-hidden="true" />
       <div className="relative">
         <div className="flex items-center justify-between">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-warn">🔥 Maggie streak</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-warn">
+            <span className="flame-breathe" aria-hidden="true">🔥</span> Maggie streak
+          </div>
         </div>
         <div className="mt-2 flex items-baseline gap-2">
-          <div className="text-4xl font-bold tracking-tight text-ink">{current}</div>
+          <div
+            key={current}
+            className={`text-4xl font-bold tracking-tight text-ink ${milestone ? 'anim-milestone rounded-lg' : 'anim-pop'} inline-block`}
+          >
+            {current}
+          </div>
           <div className="text-sm text-muted">{current === 1 ? 'day' : 'days'}</div>
         </div>
         <div className="mt-1 text-xs text-muted">
@@ -56,8 +69,8 @@ export function StreakCard({ streaks, habitLabels }: { streaks: Streaks; habitLa
       <CardHeader title="Streaks" />
       <div className="grid grid-cols-2 gap-2.5">
         {rows.map((r) => (
-          <div key={r.key} className="rounded-xl border border-line bg-surface-2/40 px-3 py-2">
-            <div className="text-lg font-semibold text-ink">
+          <div key={`${r.key}-${r.value}`} className="rounded-xl border border-line bg-surface-2/40 px-3 py-2">
+            <div key={r.value} className="anim-pop text-lg font-semibold text-ink">
               {r.value} <span className="text-xs font-normal text-muted">days</span>
             </div>
             <div className="truncate text-[11px] text-muted">{r.label}</div>

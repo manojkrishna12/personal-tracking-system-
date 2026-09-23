@@ -75,7 +75,7 @@ export default function Dashboard() {
   const firstName = (me?.user.name ?? 'there').split(' ')[0]!
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       {/* Greeting header */}
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>

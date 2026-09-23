@@ -1,3 +1,4 @@
+import { AnimatedNumber } from '../ui'
 import { qualityClass, qualityLabel } from '../../lib/quality'
 import type { ScoreBreakdownItem } from '../../api/types'
 
@@ -16,7 +17,9 @@ export default function ScoreSummary({ score, quality, breakdown, preview }: Pro
   return (
     <div className="rounded-lg border border-line bg-surface p-4 sm:p-5">
       <div className="flex items-baseline gap-3">
-        <div className="text-3xl font-semibold tracking-tight text-ink">{display ?? '—'}</div>
+        <div key={display ?? 'none'} className="anim-pop text-3xl font-semibold tracking-tight text-ink">
+          {display == null ? '—' : <AnimatedNumber value={display} format={(n) => String(n)} animateOnMount />}
+        </div>
         <div className="text-sm text-muted">/ 100</div>
         <div className={`ml-auto text-sm font-medium ${qualityClass(displayQuality)}`}>
           {displayQuality ? qualityLabel(displayQuality) : 'No score yet'}

@@ -1,6 +1,6 @@
 import { formatPaise } from '../../lib/money'
 import type { FinanceOverview, WalletOverview } from '../../api/types'
-import { Button, Card } from '../ui'
+import { AnimatedNumber, Button, Card } from '../ui'
 
 function WalletIcon({ wallet }: { wallet: WalletOverview }) {
   if (wallet.key === 'cash') {
@@ -30,7 +30,9 @@ function WalletCard({ wallet, onReconcile }: { wallet: WalletOverview; onReconci
           <WalletIcon wallet={wallet} />
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wider text-muted">{wallet.label}</div>
-            <div className="mt-0.5 text-2xl font-bold tracking-tight text-ink">{formatPaise(wallet.balancePaise)}</div>
+            <div className="mt-0.5 text-2xl font-bold tracking-tight text-ink">
+              <AnimatedNumber value={wallet.balancePaise} format={formatPaise} animateOnMount />
+            </div>
           </div>
         </div>
         <button onClick={() => onReconcile(wallet)} className="text-[11px] text-muted transition-colors hover:text-ink" title={`Reconcile ${wallet.label}`}>
@@ -67,7 +69,9 @@ export function MoneyOverview({ overview, onAddMoney, onAddExpense, onReconcile 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted">Total available</div>
-            <div className="text-2xl font-bold tracking-tight text-ink">{formatPaise(overview.totalBalancePaise)}</div>
+            <div className="text-2xl font-bold tracking-tight text-ink">
+              <AnimatedNumber value={overview.totalBalancePaise} format={formatPaise} animateOnMount />
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={onAddMoney}>
@@ -79,15 +83,21 @@ export function MoneyOverview({ overview, onAddMoney, onAddExpense, onReconcile 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted">Today</div>
-            <div className="text-sm font-medium text-ink">{formatPaise(overview.spent.todayPaise)}</div>
+            <div className="text-sm font-medium text-ink">
+              <AnimatedNumber value={overview.spent.todayPaise} format={formatPaise} animateOnMount />
+            </div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted">This week</div>
-            <div className="text-sm font-medium text-ink">{formatPaise(overview.spent.weekPaise)}</div>
+            <div className="text-sm font-medium text-ink">
+              <AnimatedNumber value={overview.spent.weekPaise} format={formatPaise} animateOnMount />
+            </div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted">This month</div>
-            <div className="text-sm font-medium text-ink">{formatPaise(overview.spent.monthPaise)}</div>
+            <div className="text-sm font-medium text-ink">
+              <AnimatedNumber value={overview.spent.monthPaise} format={formatPaise} animateOnMount />
+            </div>
           </div>
         </div>
       </Card>

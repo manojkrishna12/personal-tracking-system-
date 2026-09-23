@@ -53,7 +53,7 @@ export default function Money() {
   const csvHref = `/api/finance/export.csv${rangeQ}`
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-ink">Money</h1>
         <div className="flex gap-2">

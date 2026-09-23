@@ -1,5 +1,6 @@
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
+import { useCountUp } from '../lib/motion'
 
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' | 'accent' }) {
   const styles =
@@ -67,11 +68,24 @@ export function Dot({ color }: { color: string }) {
 }
 
 /**
- * SVG progress ring with a subtle draw-in animation (respects reduced motion
- * via the .ring-anim transition in index.css). Pure SVG — no dependencies.
+ * SVG progress ring. Draws in from 0 on mount and re-draws smoothly when the
+ * value changes (via the .ring-anim transition); the % label counts alongside.
+ * Pure SVG/CSS — no dependencies, respects reduced motion.
  */
 export function ProgressRing({ value, size = 72, stroke = 7, label }: { value: number; size?: number; stroke?: number; label?: string }) {
   const clamped = Math.max(0, Math.min(100, value))
+  // Mount one frame later so the dashoffset transition draws from 0.
+  const [drawn, setDrawn] = useState(false)
+  useEffect(() => {
+    if (typeof requestAnimationFrame === 'undefined') {
+      setDrawn(true)
+      return
+    }
+    const raf = requestAnimationFrame(() => setDrawn(true))
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  const shown = drawn ? clamped : 0
+  const displayPct = useCountUp(shown, 900)
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
   return (
@@ -87,7 +101,7 @@ export function ProgressRing({ value, size = 72, stroke = 7, label }: { value: n
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
-          strokeDashoffset={c - (clamped / 100) * c}
+          strokeDashoffset={c - (shown / 100) * c}
           className="ring-anim"
         />
         <defs>
@@ -98,7 +112,7 @@ export function ProgressRing({ value, size = 72, stroke = 7, label }: { value: n
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold text-ink">{clamped}%</span>
+        <span className="text-sm font-bold text-ink">{displayPct}%</span>
         {label ? <span className="text-[9px] uppercase tracking-wider text-muted">{label}</span> : null}
       </div>
     </div>
@@ -113,6 +127,18 @@ export function CardHeader({ title, action }: { title: ReactNode; action?: React
       {action}
     </div>
   )
+}
+
+/**
+ * Count-up presentation of a numeric value (e.g. ₹ amounts in paise).
+ * Purely visual: `value` is always the real API-derived number — only the
+ * rendered text animates toward it. With animateOnMount=false the first
+ * render shows the exact value (no artificial 0→N on page load); later
+ * changes animate from the previous value. Respects reduced motion.
+ */
+export function AnimatedNumber({ value, format, animateOnMount = false, className = '' }: { value: number; format: (n: number) => string; animateOnMount?: boolean; className?: string }) {
+  const display = useCountUp(value, 750, animateOnMount)
+  return <span className={className}>{format(display)}</span>
 }
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
