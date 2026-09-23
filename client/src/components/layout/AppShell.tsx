@@ -175,14 +175,14 @@ export function AppShell() {
         <NavLink
           to="/"
           end
-          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
+          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] transition-transform active:scale-90 ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
         >
           <Icon d={ICONS.home} /> Home
         </NavLink>
         <NavLink
           to="/money"
           end
-          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
+          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] transition-transform active:scale-90 ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
         >
           <Icon d={ICONS.wallet} /> Money
         </NavLink>
@@ -200,12 +200,12 @@ export function AppShell() {
         <NavLink
           to="/insights/weekly"
           end
-          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
+          className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] transition-transform active:scale-90 ${isActive ? 'font-semibold text-[var(--accent)]' : 'text-white/45'}`}
         >
           <Icon d={ICONS.insights} /> Insights
         </NavLink>
 
-        <button onClick={() => setMoreOpen(true)} className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] text-white/45">
+        <button onClick={() => setMoreOpen(true)} className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] text-white/45 transition-transform active:scale-90">
           <Icon d={ICONS.more} /> More
         </button>
       </nav>

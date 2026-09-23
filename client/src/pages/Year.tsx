@@ -15,7 +15,7 @@ export default function Year() {
   const data = review.data!
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-ink">{data.year} in review</h1>
         <div className="flex items-center gap-1.5">

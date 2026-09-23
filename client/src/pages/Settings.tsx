@@ -127,7 +127,7 @@ export default function Settings() {
   const num = (v: string) => (v === '' ? null : Math.max(0, Math.min(7, Number(v) || 0)))
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <h1 className="text-xl font-semibold text-ink">Settings</h1>
 
       <Card>

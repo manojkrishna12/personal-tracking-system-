@@ -91,7 +91,8 @@ export function TodayHabitsCard({ today }: { today: string }) {
               >
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${
+                    key={entry?.status ?? 'none'}
+                    className={`anim-pop flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${
                       positive ? 'bg-good text-bg' : recorded ? 'bg-bad/80 text-white' : 'border border-muted/50 text-muted'
                     }`}
                     aria-hidden="true"

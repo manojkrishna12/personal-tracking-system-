@@ -54,7 +54,7 @@ export default function Weight() {
   const chartData = entries.map((e) => ({ date: shortDateLabel(e.date), kg: e.weightKg }))
 
   return (
-    <div className="space-y-6">
+    <div className="stagger space-y-6">
       <h1 className="text-xl font-semibold text-ink">Weight</h1>
 
       <div className="grid gap-4 sm:grid-cols-3">

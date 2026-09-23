@@ -124,6 +124,11 @@ body {
   box-shadow: 0 6px 22px -6px var(--glow-accent);
 }
 
+/* ------------------------------------------------------------------
+   Motion layer — transform/opacity only, GPU-friendly, all
+   respects prefers-reduced-motion (global guard at the bottom).
+   ------------------------------------------------------------------ */
+
 /* Entrance animation — one-shot, subtle. */
 @keyframes rise {
   from {
@@ -139,9 +144,86 @@ body {
   animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Staggered page entrance: direct children fade/slide up sequentially.
+   One-shot per mount (route change) — delays cap at ~0.4s so content is
+   never meaningfully held back. */
+.stagger > * {
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.17s; }
+.stagger > *:nth-child(5) { animation-delay: 0.22s; }
+.stagger > *:nth-child(6) { animation-delay: 0.27s; }
+.stagger > *:nth-child(7) { animation-delay: 0.31s; }
+.stagger > *:nth-child(8) { animation-delay: 0.35s; }
+.stagger > *:nth-child(n + 9) { animation-delay: 0.38s; }
+
 /* Progress ring draw-in. */
 .ring-anim {
   transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Number/state pop — tiny scale bump, no layout shift (scale only). */
+@keyframes pop {
+  0% {
+    transform: scale(0.82);
+  }
+  55% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.anim-pop {
+  animation: pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Completion flash — brief glow on state change, fades on its own. */
+@keyframes flash {
+  0% {
+    box-shadow: 0 0 0 0 var(--flash-color, var(--glow-good));
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+.anim-flash {
+  animation: flash 0.5s ease-out;
+}
+
+/* Maggie flame — slow, gentle breathing (3.2s cycle, ±8% scale).
+   Deliberately quiet; never flashy. */
+@keyframes flame-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+.flame-breathe {
+  animation: flame-breathe 3.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Maggie milestone — one-shot warm flash behind the number. */
+@keyframes milestone-glow {
+  0% {
+    box-shadow: 0 0 0 0 var(--glow-warm);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+.anim-milestone {
+  animation: milestone-glow 0.8s ease-out;
 }
 
 /* Soft focus ring in brand color. */
@@ -155,11 +237,19 @@ body {
   background: var(--accent-soft);
 }
 
-/* Respect reduced-motion: kill entrances/transitions. */
+/* Respect reduced-motion: everything becomes instant/static. */
 @media (prefers-reduced-motion: reduce) {
   .anim-rise,
-  .ring-anim {
+  .anim-pop,
+  .anim-flash,
+  .anim-milestone,
+  .flame-breathe {
     animation: none !important;
+  }
+  .stagger > * {
+    animation: none !important;
+  }
+  .ring-anim {
     transition: none !important;
   }
   *,
