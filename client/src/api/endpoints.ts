@@ -2,6 +2,10 @@ import { api } from './client'
 import type {
   DadReport,
   DayRecord,
+  Debt,
+  DebtPersonOption,
+  DebtsPage,
+  DebtSummary,
   FinanceAnalytics,
   FinanceInsights,
   FinanceOverview,
@@ -12,6 +16,7 @@ import type {
   MonthlyInsights,
   Purchase,
   ScoringConfig,
+  SharedExpenseInput,
   Streaks,
   TransactionPage,
   User,
@@ -121,7 +126,36 @@ export const postExpense = (body: {
   date: string
   note?: string
   clientToken?: string
-}) => api<{ transaction: FinanceTransaction; replayed: boolean; walletBalancePaise: number }>('/finance/expenses', { method: 'POST', body })
+  /** Shared payment — present only when the user expands the shared section. */
+  shared?: SharedExpenseInput
+}) =>
+  api<{ transaction: FinanceTransaction; replayed: boolean; debt: Debt | null; walletBalancePaise: number }>(
+    '/finance/expenses',
+    { method: 'POST', body },
+  )
+
+// ---------------------------------------------------------------------------
+// Debts — read-only in this phase; repayment arrives later.
+// ---------------------------------------------------------------------------
+
+export interface DebtListFilters {
+  status?: 'outstanding' | 'settled' | 'all'
+  person?: string
+  limit?: number
+}
+
+export function getDebts(filters: DebtListFilters = {}): Promise<DebtsPage> {
+  const params = new URLSearchParams()
+  if (filters.status) params.set('status', filters.status)
+  if (filters.person) params.set('person', filters.person)
+  if (filters.limit) params.set('limit', String(filters.limit))
+  const qs = params.toString()
+  return api<DebtsPage>(`/finance/debts${qs ? `?${qs}` : ''}`)
+}
+
+export const getDebtsSummary = () => api<DebtSummary>('/finance/debts/summary')
+
+export const getDebtPeople = () => api<{ people: DebtPersonOption[] }>('/finance/debts/people')
 
 export const editTransaction = (
   id: string,

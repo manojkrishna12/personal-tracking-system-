@@ -175,6 +175,8 @@ export interface FinanceTransaction {
   reason?: string | null
   note?: string | null
   history?: { amountPaise: number; changedAt: string }[]
+  /** Set on expense transactions that created a debt (shared payment). */
+  debtId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -232,4 +234,63 @@ export interface LegacyPurchase {
   amount: number
   category: string
   necessary: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Debts — obligations created by shared expenses (Phase 2 plumbing; the UI
+// arrives in a later phase). Amounts are integer paise, mirroring the ledger.
+// ---------------------------------------------------------------------------
+
+export type DebtStatus = 'outstanding' | 'settled'
+
+export interface Debt {
+  _id: string
+  /** Who the user owes. */
+  person: string
+  /** Why (item/reason). */
+  item: string
+  categoryKey?: string | null
+  date: string
+  originalPaise: number
+  repaidPaise: number
+  /** The ledger expense transaction that created this debt. */
+  transactionId: string
+  status: DebtStatus
+  note?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Per-person outstanding rollup. */
+export interface DebtPerson {
+  person: string
+  outstandingPaise: number
+  debtCount: number
+}
+
+export interface DebtSummary {
+  totalOutstandingPaise: number
+  outstandingCount: number
+  people: DebtPerson[]
+}
+
+/** GET /finance/debts response. */
+export interface DebtsPage {
+  debts: Debt[]
+  /** Present only for the default outstanding listing. */
+  summary: DebtSummary | null
+}
+
+/** Autocomplete option: a person with outstanding debt. */
+export interface DebtPersonOption {
+  person: string
+  outstandingPaise: number
+}
+
+/** Optional shared-payment block on POST /finance/expenses. */
+export interface SharedExpenseInput {
+  payer: string
+  mySharePaise: number
+  /** Omitted when someone else paid everything (server treats it as 0). */
+  paidByMePaise?: number
 }
