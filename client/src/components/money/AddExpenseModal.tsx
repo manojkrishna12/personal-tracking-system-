@@ -281,35 +281,38 @@ export function AddExpenseModal({ date: defaultDate, balances, thresholds, onClo
 
               {mode !== 'me' && (
                 <>
-                  <div>
-                    <label htmlFor="expense-my-share" className="mb-1 block text-xs text-muted">
-                      My share ₹ {mode === 'someone_else' && <span className="font-normal">(the full amount)</span>}
-                    </label>
-                    {mode === 'someone_else' ? (
+                  {mode === 'split' ? (
+                    // Side-by-side on ≥sm, single column on phones.
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="expense-my-share" className="mb-1 block text-xs text-muted">My share ₹</label>
+                        <Input
+                          id="expense-my-share"
+                          inputMode="decimal"
+                          placeholder="e.g. 3000"
+                          value={myShare}
+                          onChange={(e) => setMyShare(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="expense-paid-by-me" className="mb-1 block text-xs text-muted">I paid ₹</label>
+                        <Input
+                          id="expense-paid-by-me"
+                          inputMode="decimal"
+                          placeholder="e.g. 1500"
+                          value={paidByMe}
+                          onChange={(e) => setPaidByMe(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor="expense-my-share" className="mb-1 block text-xs text-muted">
+                        My share ₹ <span className="font-normal">(the full amount)</span>
+                      </label>
                       <div className="rounded-lg border border-line bg-surface/70 px-3 py-2 text-sm text-muted">
                         {amountPaise != null ? formatPaise(amountPaise) : '—'}
                       </div>
-                    ) : (
-                      <Input
-                        id="expense-my-share"
-                        inputMode="decimal"
-                        placeholder="e.g. 3000"
-                        value={myShare}
-                        onChange={(e) => setMyShare(e.target.value)}
-                      />
-                    )}
-                  </div>
-
-                  {mode === 'split' && (
-                    <div>
-                      <label htmlFor="expense-paid-by-me" className="mb-1 block text-xs text-muted">I paid ₹</label>
-                      <Input
-                        id="expense-paid-by-me"
-                        inputMode="decimal"
-                        placeholder="e.g. 1500"
-                        value={paidByMe}
-                        onChange={(e) => setPaidByMe(e.target.value)}
-                      />
                     </div>
                   )}
 

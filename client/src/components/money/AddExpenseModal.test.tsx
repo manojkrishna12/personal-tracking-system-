@@ -292,4 +292,21 @@ describe('payer autocomplete and layout', () => {
     const section = screen.getByText('Payment arrangement').parentElement!
     expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth + 1)
   })
+
+  it('Split uses a responsive 2-column grid for share/paid (stacks on mobile)', () => {
+    renderModal()
+    openShared()
+    chooseArrangement('Split')
+    const share = screen.getByLabelText('My share ₹')
+    const grid = share.closest('div.grid')!
+    // Single column by default (phones), two columns from the sm breakpoint up.
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('sm:grid-cols-2')
+    // Payer stays outside the grid — full width underneath.
+    expect(grid.contains(screen.getByLabelText(/Paid by/i))).toBe(false)
+    // Someone else keeps its standalone (non-grid) read-only share — no input.
+    chooseArrangement('Someone else')
+    expect(document.getElementById('expense-my-share')).toBeNull()
+    expect(screen.getByText(/\(the full amount\)/)).toBeInTheDocument()
+  })
 })
