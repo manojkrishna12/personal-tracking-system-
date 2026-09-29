@@ -148,6 +148,22 @@ export const moneyInSchema = z.object({
   clientToken: optionalToken,
 })
 
+// Shared payment (debt feature): optional block on POST /expenses. The server
+// derives the debt as mySharePaise − paidByMePaise and only the paid-by-me
+// part is charged to the wallet. payer = who covered the rest (e.g. "Balaji").
+export const sharedExpenseSchema = z
+  .object({
+    // Empty/whitespace payer is allowed only when no debt results (the share
+    // was fully paid by the user) — the route enforces payer presence when a
+    // debt is actually created.
+    payer: z.string().trim().max(40),
+    mySharePaise: z.number().int().min(0).max(MAX_TRANSACTION_PAISE),
+    // Omitted for "someone else paid it all" — the server treats it as 0.
+    paidByMePaise: z.number().int().min(0).max(MAX_TRANSACTION_PAISE).optional(),
+  })
+  .refine((v) => v.mySharePaise > 0, 'My share must be greater than zero')
+  .refine((v) => v.paidByMePaise === undefined || v.paidByMePaise <= v.mySharePaise, 'Amount paid by me cannot exceed my share')
+
 export const expenseSchema = z.object({
   item: z.string().trim().min(1).max(80),
   amountPaise: positivePaise,
@@ -159,6 +175,7 @@ export const expenseSchema = z.object({
   date: dateStr,
   note: z.string().max(500).optional(),
   clientToken: optionalToken,
+  shared: sharedExpenseSchema.optional(),
 })
 
 export const transactionPatchSchema = z

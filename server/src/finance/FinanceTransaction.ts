@@ -4,6 +4,9 @@
 import { Schema, model, Types } from 'mongoose'
 
 export const TRANSACTION_TYPES = ['opening_balance', 'money_received', 'expense', 'balance_adjustment'] as const
+
+/** For expenses paid partly/fully by someone else: the debt this txn created. */
+export type DebtId = Types.ObjectId
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
 export interface OpeningBalanceHistoryEntry {
@@ -25,6 +28,8 @@ export interface FinanceTransactionDoc {
   reason?: string | null
   note?: string | null
   clientToken?: string | null
+  /** Set on expense transactions that created a debt (shared payment). */
+  debtId?: Types.ObjectId | null
   history?: OpeningBalanceHistoryEntry[]
   createdAt: Date
   updatedAt: Date
@@ -52,6 +57,7 @@ const financeTransactionSchema = new Schema(
     reason: { type: String, default: null, maxlength: 300 },
     note: { type: String, default: null, maxlength: 500 },
     clientToken: { type: String, default: null, maxlength: 64 },
+    debtId: { type: Schema.Types.ObjectId, ref: 'Debt', default: null },
     history: { type: [historyEntrySchema], default: [] },
   },
   { timestamps: true },
