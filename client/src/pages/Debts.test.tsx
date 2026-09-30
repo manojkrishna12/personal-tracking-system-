@@ -205,4 +205,36 @@ describe('/debts route and navigation', () => {
     expect(grid.className).toContain('lg:grid-cols-2')
     expect(grid.className).toContain('gap-4')
   })
+
+  it('Repay opens the modal preloaded with that debt; success refreshes the page', async () => {
+    // The repay POST succeeds with a partial repayment (₹500 of ₹1,500).
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.includes('/debts/summary')) return Promise.resolve(ok(summary))
+      if (u.includes('/debts')) return Promise.resolve(ok({ debts, summary }))
+      if (u.includes('/repay') && init?.method === 'POST') {
+        return Promise.resolve(ok({ debt: { ...debts[0], repaidPaise: 50_000 }, replayed: false, settled: false, walletBalancePaise: 950_000 }))
+      }
+      if (u.includes('/finance/overview')) return Promise.resolve(ok(overview))
+      return Promise.resolve(ok({}))
+    })
+    ui(<Debts />)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Repay' }).length).toBe(2))
+
+    // Balaji's card is first — click its Repay.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Repay' })[0]!)
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('Balaji')
+    expect(dialog.textContent).toContain('Gym membership')
+    expect(dialog.textContent).toContain('₹1,500')
+
+    // Confirm → success banner, modal closed, queries invalidated.
+    fireEvent.change(screen.getByLabelText(/Amount to repay/i), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: /Confirm repayment/i }))
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument())
+    expect(screen.getByRole('status').textContent).toContain('Repaid ₹500 to Balaji')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // Refetch happened (invalidation): debts endpoint called again post-repay.
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/debts') && !String(u).includes('repay')).length).toBeGreaterThan(2))
+  })
 })

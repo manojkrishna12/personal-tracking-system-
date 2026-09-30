@@ -6,7 +6,10 @@
 
 import { type ClientSession, Types } from 'mongoose'
 import { Debt, type DebtDoc } from './Debt'
+import { FinanceTransaction } from './FinanceTransaction'
 import { FinanceError } from './errors'
+import { insertIdempotent, walletBalances } from './ledger'
+import { todayInTz } from '../utils/dates'
 
 const objId = (id: string) => new Types.ObjectId(id)
 
@@ -145,11 +148,112 @@ export async function listPeople(userId: string): Promise<{ person: string; outs
 /**
  * Phase-1 guard: a shared expense's debt is a real obligation — silently
  * deleting the expense would erase it. Deletion/amount/wallet changes are
- * blocked until Phase 2 adds explicit cascade rules.
+ * blocked (the debt itself now has an explicit repay flow instead).
  */
 export async function assertTransactionNotDebtLinked(transactionId: string): Promise<void> {
   const linked = await Debt.exists({ transactionId: new Types.ObjectId(transactionId) })
   if (linked) {
-    throw new FinanceError(409, 'SHARED_EXPENSE_PROTECTED', 'This expense created a debt and cannot be changed yet — repayments arrive in a later update')
+    throw new FinanceError(409, 'SHARED_EXPENSE_PROTECTED', 'This expense created a debt and cannot be changed — debts are managed on the Debts page')
   }
+}
+
+// ---------------------------------------------------------------------------
+// Repayment (Phase 5). repaidPaise is a DERIVED CACHE: the ledger (repayment
+// transactions) is the source of truth, mirroring how walletBalances() works.
+// Every repayment recomputes repaid from surviving repayment transactions, so
+// any future repayment deletion self-heals on the next repayment. Status
+// flips to 'settled' exactly when the recomputed total reaches original.
+// ---------------------------------------------------------------------------
+
+export interface RepayResult {
+  debt: DebtDoc
+  replayed: boolean
+  walletBalancePaise: number
+  settled: boolean
+}
+
+/**
+ * Apply a repayment: insert the ledger outflow (insertIdempotent handles
+ * replays), then recompute repaidPaise/status from ALL repayment txns for
+ * the debt. Caller wraps this in withTransaction() and has already validated
+ * amount/outstanding/balance.
+ */
+export async function repayDebt(
+  userId: string,
+  debtId: string,
+  input: { amountPaise: number; walletKey: 'cash' | 'phonepe'; clientToken?: string | null },
+  session: Session = null,
+): Promise<RepayResult> {
+  const debt = await Debt.findOne({ _id: objId(debtId), userId: objId(userId) }).session(session)
+  if (!debt) throw new FinanceError(404, 'NOT_FOUND', 'Debt not found')
+
+  // Idempotency probe: a retried submit replays without double-charging.
+  if (input.clientToken) {
+    const prior = await FinanceTransaction.findOne({
+      userId: objId(userId),
+      clientToken: input.clientToken,
+      type: 'debt_repayment',
+      debtId: debt._id,
+    })
+      .session(session)
+      .lean()
+    if (prior) {
+      const refreshed = await recomputeDebtFromLedger(userId, debtId, session)
+      const balances = await walletBalances(userId, session)
+      return { debt: refreshed, replayed: true, walletBalancePaise: balances[input.walletKey], settled: refreshed.status === 'settled' }
+    }
+  }
+
+  const { txn } = await insertIdempotent(
+    userId,
+    {
+      walletKey: input.walletKey,
+      type: 'debt_repayment',
+      date: todayInTz('Asia/Kolkata'),
+      amountPaise: -input.amountPaise,
+      item: `Repayment to ${debt.person}`,
+      categoryKey: null,
+      necessity: null,
+      reason: `Debt repayment — ${debt.item}`,
+      note: null,
+      clientToken: input.clientToken ?? null,
+    },
+    session,
+  )
+  // Backfill the debt link (same crash-repair pattern as shared expenses).
+  if (String(txn.debtId ?? '') !== String(debt._id)) {
+    await FinanceTransaction.updateOne({ _id: txn._id }, { $set: { debtId: debt._id } }, { session: session ?? undefined })
+  }
+
+  const updated = await recomputeDebtFromLedger(userId, debtId, session)
+  const balances = await walletBalances(userId, session)
+  return { debt: updated, replayed: false, walletBalancePaise: balances[input.walletKey], settled: updated.status === 'settled' }
+}
+
+/**
+ * Recompute a debt's repaidPaise and status from its surviving repayment
+ * transactions (ledger = source of truth, like wallet balances). Clamps to
+ * [0, originalPaise] — repaid can never go negative or exceed original.
+ */
+export async function recomputeDebtFromLedger(
+  userId: string,
+  debtId: string,
+  session: Session = null,
+): Promise<DebtDoc> {
+  const debt = await Debt.findOne({ _id: objId(debtId), userId: objId(userId) }).session(session)
+  if (!debt) throw new FinanceError(404, 'NOT_FOUND', 'Debt not found')
+  const rows = await FinanceTransaction.find({
+    userId: objId(userId),
+    type: 'debt_repayment',
+    debtId: debt._id,
+  })
+    .session(session)
+    .select('amountPaise')
+    .lean()
+  const repaid = rows.reduce((sum, r) => sum + Math.abs(r.amountPaise), 0)
+  const clamped = Math.min(Math.max(0, repaid), debt.originalPaise)
+  debt.repaidPaise = clamped
+  debt.status = clamped >= debt.originalPaise ? 'settled' : 'outstanding'
+  await debt.save({ session: session ?? undefined })
+  return debt
 }

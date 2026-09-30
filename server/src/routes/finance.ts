@@ -24,6 +24,7 @@ import {
   summarizeDebts,
   listPeople,
   assertTransactionNotDebtLinked,
+  repayDebt,
   type DebtStatusFilter,
 } from '../finance/debts'
 import { computeAnalytics, computeDadReport } from '../finance/analytics'
@@ -40,6 +41,7 @@ import {
   adjustmentSchema,
   moneyInSchema,
   expenseSchema,
+  repayDebtSchema,
   transactionPatchSchema,
   financeSettingsSchema,
   convertLegacySchema,
@@ -317,6 +319,49 @@ router.get('/debts/people', async (req: AuthRequest, res) => {
   res.json({ data: { people: await listPeople(req.user!.id) } })
 })
 
+// Repay a debt: one wallet outflow (type debt_repayment) linked to the debt;
+// the debt's repaidPaise/status are then recomputed from the ledger.
+router.post('/debts/:id/repay', validate(repayDebtSchema), async (req: AuthRequest, res) => {
+  const { amountPaise, walletKey, clientToken } = req.body as {
+    amountPaise: number
+    walletKey: 'cash' | 'phonepe'
+    clientToken?: string
+  }
+  const debtId = req.params.id as string
+
+  // Load + validate against the CURRENT debt state before touching wallets.
+  const debt = await Debt.findOne({ _id: debtId, userId: req.user!.id })
+  if (!debt) {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Debt not found' } })
+    return
+  }
+  if (debt.status === 'settled') {
+    throw new FinanceError(409, 'DEBT_ALREADY_SETTLED', 'This debt is already fully repaid')
+  }
+  const outstanding = debt.originalPaise - debt.repaidPaise
+  if (amountPaise > outstanding) {
+    throw new FinanceError(409, 'EXCEEDS_OUTSTANDING', `Repayment exceeds the outstanding ${(outstanding / 100).toFixed(2)}`, {
+      outstandingPaise: outstanding,
+      requestedPaise: amountPaise,
+    })
+  }
+
+  // Overdraft guard — a repayment is real money leaving the wallet.
+  const balances = await walletBalances(req.user!.id)
+  if (balances[walletKey] < amountPaise) {
+    throw new FinanceError(409, 'INSUFFICIENT_BALANCE', `Insufficient ${walletLabel(walletKey)} balance`, {
+      walletKey,
+      balancePaise: balances[walletKey],
+      requestedPaise: amountPaise,
+    })
+  }
+
+  const result = await withTransaction((session) => repayDebt(req.user!.id, debtId, { amountPaise, walletKey, clientToken: clientToken ?? null }, session))
+  res.status(result.replayed ? 200 : 201).json({
+    data: { debt: result.debt, replayed: result.replayed, settled: result.settled, walletBalancePaise: result.walletBalancePaise },
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Transaction list + edit/delete (opening balances protected).
 // ---------------------------------------------------------------------------
@@ -384,6 +429,11 @@ router.put('/transactions/:id', validate(transactionPatchSchema), async (req: Au
   ) {
     await assertTransactionNotDebtLinked(String(before._id))
   }
+  // Repayment transactions feed the debt's derived repaidPaise — any edit
+  // (even note-only) is refused; the debt flow owns these records.
+  if (before.type === 'debt_repayment') {
+    throw new FinanceError(409, 'REPAYMENT_PROTECTED', 'Repayments cannot be edited — they are managed from the Debts page')
+  }
   const txn = await updateTransaction(req.user!.id, req.params.id as string, req.body)
   if (txn.type === 'expense') {
     await restampDayScore(req.user!.id, before.date)
@@ -397,6 +447,11 @@ router.delete('/transactions/:id', async (req: AuthRequest, res) => {
   const txn = await getTransaction(req.user!.id, req.params.id as string)
   // Deleting a shared expense would silently erase a real obligation.
   if (txn.debtId) await assertTransactionNotDebtLinked(String(txn._id))
+  // Deleting a repayment would corrupt the derived repaidPaise (the ledger
+  // history must stay append-only for debts) — explicit conflict instead.
+  if (txn.type === 'debt_repayment') {
+    throw new FinanceError(409, 'REPAYMENT_PROTECTED', 'Repayments cannot be deleted — they are managed from the Debts page')
+  }
   await deleteTransaction(req.user!.id, req.params.id as string)
   if (txn.type === 'expense') await restampDayScore(req.user!.id, txn.date)
   res.status(204).end()
@@ -487,12 +542,23 @@ router.get('/export.csv', async (req: AuthRequest, res) => {
   const txns = await FinanceTransaction.find(q).sort({ date: 1, _id: 1 }).lean()
   const { walletLabel: wl, categoryLabel: cl } = await import('../finance/registry')
 
-  // Shared expenses: annotate the note with who paid the rest (additive only).
+  // Shared-expense + repayment annotations (additive only). Repayment txns
+  // also carry debtId, so scope the "paid part" note to expenses.
   const debtIds = txns.filter((t) => t.debtId).map((t) => t.debtId!)
   const debtPerson = new Map<string, string>()
   if (debtIds.length > 0) {
     const debts = await Debt.find({ userId: objId(req.user!.id), _id: { $in: debtIds } }).select('person').lean()
     for (const d of debts) debtPerson.set(String(d._id), d.person)
+    for (const t of txns) {
+      if (!t.debtId) continue
+      const person = debtPerson.get(String(t.debtId))
+      if (!person) continue
+      if (t.type === 'debt_repayment') {
+        t.note = `${t.note ? t.note + ' — ' : ''}Debt repayment to ${person}`
+      } else if (t.type === 'expense') {
+        t.note = `${t.note ? t.note + ' — ' : ''}Shared: ${person} paid part`
+      }
+    }
   }
 
   const header = ['Date', 'Type', 'Item', 'Amount', 'Wallet', 'Category', 'Necessity', 'Source', 'Note']

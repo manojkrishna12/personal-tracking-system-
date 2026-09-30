@@ -157,6 +157,9 @@ export const getDebtsSummary = () => api<DebtSummary>('/finance/debts/summary')
 
 export const getDebtPeople = () => api<{ people: DebtPersonOption[] }>('/finance/debts/people')
 
+export const repayDebt = (id: string, body: { amountPaise: number; walletKey: WalletKey; clientToken?: string }) =>
+  api<{ debt: Debt; replayed: boolean; settled: boolean; walletBalancePaise: number }>(`/finance/debts/${id}/repay`, { method: 'POST', body })
+
 export const editTransaction = (
   id: string,
   body: { amountPaise?: number; walletKey?: WalletKey; date?: string; item?: string; categoryKey?: string; necessity?: 'necessary' | 'optional' | 'wasteful'; source?: string; reason?: string; note?: string | null },

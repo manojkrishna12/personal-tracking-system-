@@ -15,6 +15,7 @@ import {
   getLegacyPurchases,
   postAdjustment,
   postExpense,
+  repayDebt,
   postMoneyIn,
   putOpeningBalance,
   saveFinanceSettings,
@@ -92,6 +93,15 @@ export function useDebts(filters: DebtListFilters = {}) {
   return useQuery({
     queryKey: ['finance', 'debts', filters],
     queryFn: () => getDebts(filters),
+  })
+}
+
+/** Repay a debt — the ['finance'] invalidation refreshes debts, wallets, and the transaction list together. */
+export function useRepayDebt() {
+  const invalidate = useInvalidateFinance()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; amountPaise: number; walletKey: WalletKey; clientToken?: string }) => repayDebt(id, body),
+    onSuccess: invalidate,
   })
 }
 

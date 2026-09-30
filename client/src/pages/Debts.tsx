@@ -1,15 +1,17 @@
-import { Card, ErrorState, LoadingState, SectionTitle } from '../components/ui'
+import { useState } from 'react'
+import { Button, Card, ErrorState, LoadingState, SectionTitle } from '../components/ui'
 import { useDebts, useDebtsSummary } from '../hooks/useFinance'
 import { formatPaise } from '../lib/money'
 import { debtOutstandingPaise } from '../lib/debts'
 import { categoryLabel } from '../components/money/categories'
+import { RepayDebtModal } from '../components/debts/RepayDebtModal'
 import type { Debt } from '../api/types'
 
-// Read-only view of obligations created by shared expenses (Phase 4). All
-// numbers come verbatim from the debts API — nothing is derived or invented
-// here. Repayment arrives in Phase 5; this page changes nothing.
+// View of obligations created by shared expenses. All numbers come verbatim
+// from the debts API — nothing is derived or invented here. Repayment
+// (Phase 5) opens the repay modal from each outstanding debt row.
 
-function DebtRow({ debt }: { debt: Debt }) {
+function DebtRow({ debt, onRepay }: { debt: Debt; onRepay: (d: Debt) => void }) {
   const remaining = debtOutstandingPaise(debt)
   const repaid = Math.min(debt.repaidPaise, debt.originalPaise)
   const pct = debt.originalPaise > 0 ? Math.round((repaid / debt.originalPaise) * 100) : 0
@@ -28,9 +30,14 @@ function DebtRow({ debt }: { debt: Debt }) {
           {repaid > 0 && <> · Repaid {formatPaise(repaid)}</>}
         </span>
       </div>
-      {/* Repaid progress bar — flat at 0% until repayment ships (Phase 5). */}
+      {/* Repaid progress bar — fills as repayments land. */}
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2" role="presentation">
         <div className="h-full rounded-full bg-good/70 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-2 flex justify-end">
+        <Button variant="ghost" className="min-h-[36px] px-3 text-xs" onClick={() => onRepay(debt)}>
+          Repay
+        </Button>
       </div>
     </div>
   )
@@ -44,6 +51,8 @@ function DebtRow({ debt }: { debt: Debt }) {
 export function Debts() {
   const summary = useDebtsSummary()
   const outstanding = useDebts({ status: 'outstanding' })
+  const [repaying, setRepaying] = useState<Debt | null>(null)
+  const [savedMsg, setSavedMsg] = useState('')
 
   const loading = summary.isLoading || outstanding.isLoading
   const error = summary.isError || outstanding.isError
@@ -77,6 +86,12 @@ export function Debts() {
         <h1 className="text-xl font-semibold text-ink">Debts</h1>
         <span className="text-xs text-muted">What you owe others — from shared expenses</span>
       </div>
+
+      {savedMsg && (
+        <div className="rounded-xl border border-good/30 bg-good/10 px-4 py-2.5 text-sm text-good" role="status">
+          {savedMsg}
+        </div>
+      )}
 
       {/* Total outstanding — the headline number. */}
       <Card interactive className="relative overflow-hidden">
@@ -119,13 +134,24 @@ export function Debts() {
                 </div>
                 <div className="space-y-2">
                   {debts.map((d) => (
-                    <DebtRow key={d._id} debt={d} />
+                    <DebtRow key={d._id} debt={d} onRepay={setRepaying} />
                   ))}
                 </div>
               </Card>
             )
           })}
         </div>
+      )}
+
+      {repaying && (
+        <RepayDebtModal
+          debt={repaying}
+          onClose={() => setRepaying(null)}
+          onSaved={(msg) => {
+            setSavedMsg(msg)
+            setRepaying(null)
+          }}
+        />
       )}
     </div>
   )

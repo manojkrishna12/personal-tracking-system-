@@ -178,6 +178,13 @@ export const expenseSchema = z.object({
   shared: sharedExpenseSchema.optional(),
 })
 
+/** Debt repayment: amount > 0, from one of the two wallets, idempotent submit. */
+export const repayDebtSchema = z.object({
+  amountPaise: positivePaise,
+  walletKey,
+  clientToken: optionalToken,
+})
+
 export const transactionPatchSchema = z
   .object({
     amountPaise: z
