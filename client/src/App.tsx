@@ -3,6 +3,7 @@ import { AppShell } from './components/layout/AppShell'
 import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import DayView from './pages/DayView'
+import { Debts } from './pages/Debts'
 import Login from './pages/Login'
 import Money from './pages/Money'
 import Monthly from './pages/Monthly'
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/day/:date" element={<DayView />} />
         <Route path="/money" element={<Money />} />
+        <Route path="/debts" element={<Debts />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/insights/weekly" element={<Weekly />} />
         <Route path="/insights/monthly" element={<Monthly />} />
