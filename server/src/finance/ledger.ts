@@ -98,9 +98,11 @@ export async function insertIdempotent(
     note?: string | null
     clientToken?: string | null
   },
+  session: Session = null,
 ): Promise<{ txn: FinanceTransactionDoc; replayed: boolean }> {
   try {
-    const created = await FinanceTransaction.create([{ ...doc, userId: objId(userId) }])
+    const opts = session ? { session } : undefined
+    const created = await FinanceTransaction.create([{ ...doc, userId: objId(userId) }], opts)
     return { txn: created[0]!, replayed: false }
   } catch (err) {
     if ((err as { code?: number }).code === 11000 && doc.clientToken) {

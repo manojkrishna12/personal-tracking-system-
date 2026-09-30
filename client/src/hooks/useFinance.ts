@@ -3,6 +3,9 @@ import {
   convertLegacyPurchase,
   deleteTransaction,
   editTransaction,
+  getDebtPeople,
+  getDebts,
+  getDebtsSummary,
   getDadReport,
   getFinanceAnalytics,
   getFinanceInsights,
@@ -12,11 +15,12 @@ import {
   getLegacyPurchases,
   postAdjustment,
   postExpense,
+  repayDebt,
   postMoneyIn,
   putOpeningBalance,
   saveFinanceSettings,
 } from '../api/endpoints'
-import type { TransactionFilters } from '../api/endpoints'
+import type { DebtListFilters, TransactionFilters } from '../api/endpoints'
 import type { WalletKey } from '../api/types'
 
 export type { TransactionFilters }
@@ -25,6 +29,8 @@ function useInvalidateFinance() {
   const qc = useQueryClient()
   return () => {
     qc.invalidateQueries({ queryKey: ['finance'] })
+    // Debt queries live under ['finance', 'debts', …], so the single
+    // ['finance'] invalidation above already covers them.
     // Day scores re-stamp when ledger expenses change.
     qc.invalidateQueries({ queryKey: ['day'] })
     qc.invalidateQueries({ queryKey: ['days'] })
@@ -77,6 +83,34 @@ export function useAddExpense() {
     mutationFn: postExpense,
     onSuccess: invalidate,
   })
+}
+
+// ---------------------------------------------------------------------------
+// Debts — obligations created by shared expenses (read-only for now).
+// ---------------------------------------------------------------------------
+
+export function useDebts(filters: DebtListFilters = {}) {
+  return useQuery({
+    queryKey: ['finance', 'debts', filters],
+    queryFn: () => getDebts(filters),
+  })
+}
+
+/** Repay a debt — the ['finance'] invalidation refreshes debts, wallets, and the transaction list together. */
+export function useRepayDebt() {
+  const invalidate = useInvalidateFinance()
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; amountPaise: number; walletKey: WalletKey; clientToken?: string }) => repayDebt(id, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDebtsSummary() {
+  return useQuery({ queryKey: ['finance', 'debts', 'summary'], queryFn: getDebtsSummary })
+}
+
+export function useDebtPeople() {
+  return useQuery({ queryKey: ['finance', 'debts', 'people'], queryFn: getDebtPeople })
 }
 
 export function useEditTransaction() {
